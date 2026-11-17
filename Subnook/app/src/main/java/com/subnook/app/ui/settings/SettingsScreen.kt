@@ -1,0 +1,254 @@
+package com.subnook.app.ui.settings
+
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
+import androidx.compose.foundation.background
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import com.subnook.app.ui.components.Group
+import com.subnook.app.ui.components.IconTile
+import com.subnook.app.ui.components.PageHeader
+import com.subnook.app.ui.components.Pill
+import com.subnook.app.ui.theme.LocalExtra
+import com.subnook.app.data.ThemeMode
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Widgets
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Alarm
+import androidx.compose.material.icons.rounded.BatteryChargingFull
+import androidx.compose.material.icons.rounded.CurrencyExchange
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Sync
+import androidx.compose.material.icons.rounded.Upload
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.subnook.app.BuildConfig
+import com.subnook.app.data.Currencies
+import com.subnook.app.notify.Scheduler
+import com.subnook.app.ui.MainViewModel
+import com.subnook.app.ui.components.CurrencyPickerDialog
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
+@SuppressLint("BatteryLife")
+@Composable
+fun SettingsScreen(vm: MainViewModel) {
+    val ctx = LocalContext.current
+    val st by vm.state.collectAsState()
+    var currencyDlg by remember { mutableStateOf(false) }
+    var timeDlg by remember { mutableStateOf(false) }
+    var importUri by remember { mutableStateOf<Uri?>(null) }
+    // 回到页面时刷新权限状态
+    var tick by remember { mutableIntStateOf(0) }
+    LifecycleResumeEffect(Unit) { tick++; onPauseOrDispose { } }
+
+    val notifGranted = remember(tick) {
+        Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    }
+    val exactOk = remember(tick) { Scheduler.canExact(ctx) }
+    val batteryOk = remember(tick) { ctx.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(ctx.packageName) }
+
+    val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
+    // 导出和导入的文件选择器都默认打开「下载」文件夹，存和找在同一个地方
+    val exportLauncher = rememberLauncherForActivityResult(ExportToDownloads()) { uri ->
+        uri?.let(vm::export)
+    }
+    val importLauncher = rememberLauncherForActivityResult(OpenFromDownloads()) { uri -> importUri = uri }
+
+    val extra = LocalExtra.current
+    val cs = MaterialTheme.colorScheme
+    Column(
+        Modifier.fillMaxSize().background(cs.background).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        PageHeader("设置", subtitle = "Subnook ${BuildConfig.VERSION_NAME}")
+
+        Group("外观") {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconTile(Icons.Rounded.Palette, Color(0xFFEC4899))
+                Spacer(Modifier.width(14.dp))
+                Text("主题", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                Row(Modifier.clip(RoundedCornerShape(12.dp)).background(cs.surfaceContainer).padding(3.dp)) {
+                    ThemeMode.entries.forEach { m ->
+                        val sel = st.settings.theme == m
+                        Text(
+                            m.label, style = MaterialTheme.typography.labelLarge,
+                            color = if (sel) Color.White else cs.onSurfaceVariant,
+                            modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                                .then(if (sel) Modifier.background(extra.accentBrush) else Modifier)
+                                .clickable { vm.setTheme(m) }.padding(horizontal = 10.dp, vertical = 6.dp),
+                        )
+                    }
+                }
+            }
+        }
+
+        Group("桌面小组件") {
+            Item(Icons.Rounded.Widgets, Color(0xFF8B5CF6), "添加到桌面", "若没有弹出添加窗口：长按桌面空白处 → 卡片 → 插件 → Subnook") {
+                val mgr = android.appwidget.AppWidgetManager.getInstance(ctx)
+                val provider = android.content.ComponentName(ctx, com.subnook.app.widget.SubnookWidgetReceiver::class.java)
+                if (mgr.isRequestPinAppWidgetSupported) mgr.requestPinAppWidget(provider, null, null)
+                // ColorOS 等系统可能静默拒绝一键添加，给出手动方法
+                vm.toast("没有弹窗的话：长按桌面空白处 → 卡片 → 插件 → Subnook")
+            }
+        }
+
+        Group("统计与汇率") {
+            Item(Icons.Rounded.CurrencyExchange, Color(0xFF6366F1), "显示币种", "${Currencies.name(st.settings.displayCurrency)} · ${Currencies.listSymbol(st.settings.displayCurrency)}") { currencyDlg = true }
+            Divider()
+            val rateText = if (st.rates.updatedAt == 0L) "使用内置参考汇率，点此联网更新" else
+                "更新于 " + Instant.ofEpochMilli(st.rates.updatedAt).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("M月d日 HH:mm")) + " · 每 24 小时自动更新"
+            Item(Icons.Rounded.Sync, Color(0xFF0EA5E9), "立即更新汇率", rateText) { vm.refreshRates() }
+        }
+
+        Group("提醒") {
+            Item(Icons.Rounded.Schedule, Color(0xFFF59E0B), "提醒时间", "每天 %02d:%02d 检查账单并发送通知".format(st.settings.notifyHour, st.settings.notifyMinute)) { timeDlg = true }
+            Divider()
+            Item(Icons.Rounded.Notifications, Color(0xFFEF4444), "通知权限", if (notifGranted) "已开启" else "未开启，点此授权", ok = notifGranted) {
+                if (Build.VERSION.SDK_INT >= 33 && !notifGranted) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                else ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
+            }
+            Divider()
+            Item(Icons.Rounded.Alarm, Color(0xFF8B5CF6), "准时提醒", if (exactOk) "已允许精确闹钟" else "未允许，提醒可能延迟", ok = exactOk) {
+                if (Build.VERSION.SDK_INT >= 31) {
+                    ctx.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${ctx.packageName}")))
+                }
+            }
+            Divider()
+            Item(Icons.Rounded.BatteryChargingFull, Color(0xFF10B981), "忽略电池优化", if (batteryOk) "已忽略，后台提醒更可靠" else "ColorOS 后台管控较严，建议开启", ok = batteryOk) {
+                if (!batteryOk) ctx.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${ctx.packageName}")))
+                else ctx.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+            }
+        }
+
+        Group("数据备份") {
+            Item(Icons.Rounded.Upload, Color(0xFF14B8A6), "导出备份", "保存为 JSON 文件，含付款记录、自定义图标和设置") {
+                exportLauncher.launch("subnook-backup-${LocalDate.now()}.json")
+            }
+            Divider()
+            Item(Icons.Rounded.Download, Color(0xFF3B82F6), "导入备份", "从 JSON 文件恢复，会覆盖当前全部数据") {
+                importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+            }
+        }
+
+        Text(
+            "${st.subs.size} 个订阅 · 所有数据仅保存在本机",
+            style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+        Spacer(Modifier.height(100.dp))
+        Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+    }
+
+    if (currencyDlg) CurrencyPickerDialog(st.settings.displayCurrency, { currencyDlg = false }) { vm.setCurrency(it); currencyDlg = false }
+    if (timeDlg) {
+        val tp = rememberTimePickerState(st.settings.notifyHour, st.settings.notifyMinute, is24Hour = true)
+        AlertDialog(
+            onDismissRequest = { timeDlg = false },
+            title = { Text("提醒时间") },
+            text = { TimePicker(tp) },
+            confirmButton = { TextButton(onClick = { vm.setNotifyTime(tp.hour, tp.minute); timeDlg = false }) { Text("确定") } },
+            dismissButton = { TextButton(onClick = { timeDlg = false }) { Text("取消") } },
+        )
+    }
+    importUri?.let { uri ->
+        AlertDialog(
+            onDismissRequest = { importUri = null },
+            title = { Text("导入并覆盖？") },
+            text = { Text("当前的全部订阅和付款记录将被备份文件中的内容替换，此操作无法撤销。建议先导出一份当前数据。") },
+            confirmButton = { TextButton(onClick = { vm.import(uri); importUri = null }) { Text("覆盖导入", color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { TextButton(onClick = { importUri = null }) { Text("取消") } },
+        )
+    }
+}
+
+@Composable
+private fun Divider() = HorizontalDivider(Modifier.padding(start = 66.dp), color = MaterialTheme.colorScheme.outlineVariant)
+
+@Composable
+private fun Item(icon: ImageVector, tint: Color, title: String, desc: String, ok: Boolean? = null, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconTile(icon, tint)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(2.dp))
+            Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        when (ok) {
+            true -> Pill("已开启", LocalExtra.current.success)
+            false -> Pill("去开启", LocalExtra.current.warning)
+            null -> Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.outline)
+        }
+    }
+}
+
+/** 系统文件选择器里「下载」文件夹的位置（主存储 /Download） */
+private val DOWNLOADS_URI: Uri =
+    android.provider.DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", "primary:Download")
+
+private class ExportToDownloads : ActivityResultContracts.CreateDocument("application/json") {
+    override fun createIntent(context: android.content.Context, input: String): Intent =
+        super.createIntent(context, input).putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI, DOWNLOADS_URI)
+}
+
+private class OpenFromDownloads : ActivityResultContracts.OpenDocument() {
+    override fun createIntent(context: android.content.Context, input: Array<String>): Intent =
+        super.createIntent(context, input).putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI, DOWNLOADS_URI)
+}

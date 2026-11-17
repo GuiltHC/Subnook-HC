@@ -1,0 +1,79 @@
+package com.subnook.app.data
+
+import android.content.Context
+import androidx.room.Dao
+import androidx.room.Database
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.room.Transaction
+import androidx.room.Upsert
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface SubscriptionDao {
+    @Query("SELECT * FROM subscriptions ORDER BY active DESC, nextBillingDay ASC")
+    fun observeAll(): Flow<List<Subscription>>
+
+    @Query("SELECT * FROM subscriptions")
+    suspend fun getAll(): List<Subscription>
+
+    @Query("SELECT * FROM subscriptions WHERE id = :id")
+    suspend fun get(id: Long): Subscription?
+
+    @Query("SELECT * FROM subscriptions WHERE id = :id")
+    fun observe(id: Long): Flow<Subscription?>
+
+    @Upsert
+    suspend fun upsert(sub: Subscription): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(subs: List<Subscription>)
+
+    @Delete
+    suspend fun delete(sub: Subscription)
+
+    @Query("DELETE FROM subscriptions")
+    suspend fun deleteAll()
+
+    @Insert
+    suspend fun insertPayment(p: PaymentRecord): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPayments(ps: List<PaymentRecord>)
+
+    @Delete
+    suspend fun deletePayment(p: PaymentRecord)
+
+    @Query("SELECT * FROM payments WHERE subscriptionId = :subId ORDER BY billingDay DESC")
+    fun observePayments(subId: Long): Flow<List<PaymentRecord>>
+
+    @Query("SELECT * FROM payments WHERE billingDay BETWEEN :from AND :to")
+    fun observePaymentsBetween(from: Long, to: Long): Flow<List<PaymentRecord>>
+
+    @Query("SELECT * FROM payments")
+    suspend fun getAllPayments(): List<PaymentRecord>
+
+    @Query("SELECT * FROM payments ORDER BY billingDay DESC")
+    fun observeAllPayments(): Flow<List<PaymentRecord>>
+
+    @Transaction
+    suspend fun replaceAll(subs: List<Subscription>, payments: List<PaymentRecord>) {
+        deleteAll() // payments cascade
+        insertAll(subs)
+        insertPayments(payments)
+    }
+}
+
+@Database(entities = [Subscription::class, PaymentRecord::class], version = 1, exportSchema = false)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun dao(): SubscriptionDao
+
+    companion object {
+        fun build(context: Context): AppDatabase =
+            Room.databaseBuilder(context, AppDatabase::class.java, "subnook.db").build()
+    }
+}
