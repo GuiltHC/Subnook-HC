@@ -79,11 +79,15 @@ class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) = async { Scheduler.runAll(context) }
 }
 
-/** 开机、更新应用、改时间/时区、授予精确闹钟权限后重新安排 */
+/**
+ * 开机、更新应用、改时间/时区、授予精确闹钟权限后重新安排；
+ * 同时立即重绘桌面小组件——否则更新 App 后桌面会一直显示旧版本的画面，直到下次打开 App 或每小时的定时刷新。
+ */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) = async {
         Scheduler.schedulePeriodicWork(context)
         Scheduler.runAll(context)
+        com.subnook.app.widget.Widgets.refresh(context)
     }
 }
 

@@ -90,11 +90,14 @@ class SubnookWidget : GlanceAppWidget() {
     /**
      * 用 Responsive 而不是 Exact：部分桌面（如 ColorOS）上报给小组件的尺寸和实际显示的不一致，
      * 按上报尺寸排版会被截断或留空。Responsive 由桌面按实际大小挑「放得下的最大一份」。
-     * 订阅列表本身可以滑动，这些档位只用来决定用小布局 / 紧凑标题 / 大标题（紧凑标题的分界约 176dp）。
+     * 订阅列表本身可以滑动，这些档位只用来决定窄 / 宽布局、紧凑 / 大标题、窄布局是否显示金额。
      */
     override val sizeMode = SizeMode.Responsive(
         setOf(
-            DpSize(110.dp, 110.dp),
+            // 窄（2×2 等）：宽 110 / 150 × 高 110 / 150 / 200 / 260
+            DpSize(110.dp, 110.dp), DpSize(110.dp, 150.dp), DpSize(110.dp, 200.dp), DpSize(110.dp, 260.dp),
+            DpSize(150.dp, 110.dp), DpSize(150.dp, 150.dp), DpSize(150.dp, 200.dp), DpSize(150.dp, 260.dp),
+            // 宽（4×2 及以上）
             DpSize(200.dp, 110.dp),
             DpSize(200.dp, 140.dp),
             DpSize(200.dp, 176.dp),
@@ -191,16 +194,17 @@ private val White55 = ColorProvider(Color.White.copy(alpha = 0.55f))
 private fun Content(d: WidgetData) {
     val size = LocalSize.current
     val fontScale = androidx.glance.LocalContext.current.resources.configuration.fontScale.coerceAtLeast(1f)
-    val small = size.width < 200.dp || size.height < 110.dp
+    val narrow = size.width < 200.dp
     Box(
         GlanceModifier.fillMaxSize()
             .appWidgetBackground()
             .cornerRadius(26.dp)
             .background(ImageProvider(R.drawable.widget_bg))
             .clickable(actionStartActivity<MainActivity>())
-            .padding(horizontal = 16.dp, vertical = PAD_V.dp),
+            .padding(horizontal = if (narrow) 12.dp else 16.dp, vertical = PAD_V.dp),
     ) {
-        if (small) Small(d) else Large(d, compactHeader = useCompactHeader(size.height.value, fontScale))
+        if (narrow) Small(d, size.width.value, size.height.value, fontScale)
+        else Large(d, compactHeader = useCompactHeader(size.height.value, fontScale))
     }
 }
 
@@ -219,29 +223,71 @@ private fun useCompactHeader(heightDp: Float, fontScale: Float): Boolean {
     return listSpace < ROW_H * 2 + ROW_GAP
 }
 
+private const val NARROW_ROW_H = 40f
+
+/**
+ * 窄小组件（2×2 等，宽度 < 200dp）：和大尺寸一样用可滑动列表铺满标题下方，不再只放一条、中间空一块。
+ * 高度不够时标题压成一行；宽度 ≥ 150dp 时每行右侧显示金额 / 「已付」按钮。
+ */
 @Composable
-private fun Small(d: WidgetData) {
+private fun Small(d: WidgetData, widthDp: Float, heightDp: Float, fontScale: Float) {
+    val big = Currencies.formatList(d.monthly, d.currency)
+    val inner = heightDp - PAD_V * 2
+    val compact = inner - 62f * fontScale - ROW_GAP < NARROW_ROW_H * 2 + ROW_GAP
+    val showAmount = widthDp >= 150f
     Column(GlanceModifier.fillMaxSize()) {
-        Text("每月支出", style = TextStyle(color = White70, fontSize = 12.sp))
-        val big = Currencies.formatList(d.monthly, d.currency)
-        Text(big, style = TextStyle(color = White, fontSize = fitSize(big, 24f, 7), fontWeight = FontWeight.Bold), maxLines = 1)
-        Text("${d.activeCount} 个订阅", style = TextStyle(color = White55, fontSize = 11.sp))
-        Spacer(GlanceModifier.defaultWeight())
-        val first = d.items.firstOrNull()
-        if (first == null) {
-            Text("点此添加订阅", style = TextStyle(color = White70, fontSize = 12.sp))
+        if (compact) {
+            Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("每月 ", style = TextStyle(color = White70, fontSize = 11.sp))
+                Text(big, style = TextStyle(color = White, fontSize = fitSize(big, 18f, 10), fontWeight = FontWeight.Bold), maxLines = 1)
+            }
         } else {
-            Row(
-                GlanceModifier.fillMaxWidth().background(ImageProvider(R.drawable.widget_row)).padding(8.dp)
-                    .clickable(openSub(androidx.glance.LocalContext.current, first.id)),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Image(first.icon, first.name, GlanceModifier.size(28.dp).cornerRadius(8.dp), contentScale = ContentScale.Crop)
-                Spacer(GlanceModifier.width(8.dp))
-                Column(GlanceModifier.defaultWeight()) {
-                    Text(first.name, style = TextStyle(color = White, fontSize = 12.sp, fontWeight = FontWeight.Medium), maxLines = 1)
-                    Text(Billing.dueText(first.days), style = TextStyle(color = dueColor(first.days), fontSize = 11.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+            Text("每月支出", style = TextStyle(color = White70, fontSize = 12.sp))
+            Text(big, style = TextStyle(color = White, fontSize = fitSize(big, 22f, 8), fontWeight = FontWeight.Bold), maxLines = 1)
+            Text("${d.activeCount} 个订阅", style = TextStyle(color = White55, fontSize = 11.sp))
+        }
+        Spacer(GlanceModifier.height(ROW_GAP.dp))
+        if (d.items.isEmpty()) {
+            Box(GlanceModifier.fillMaxWidth().defaultWeight(), contentAlignment = Alignment.Center) {
+                Text("点此添加订阅", style = TextStyle(color = White70, fontSize = 12.sp))
+            }
+        } else {
+            LazyColumn(GlanceModifier.fillMaxWidth().defaultWeight()) {
+                items(d.items, itemId = { it.id }) { item ->
+                    Column(GlanceModifier.fillMaxWidth()) {
+                        NarrowRow(item, showAmount)
+                        Spacer(GlanceModifier.height(ROW_GAP.dp))
+                    }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NarrowRow(it: WidgetItem, showAmount: Boolean) {
+    Row(
+        GlanceModifier.fillMaxWidth().height(NARROW_ROW_H.dp).background(ImageProvider(R.drawable.widget_row))
+            .padding(horizontal = 7.dp).clickable(openSub(androidx.glance.LocalContext.current, it.id)),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(it.icon, it.name, GlanceModifier.size(26.dp).cornerRadius(8.dp), contentScale = ContentScale.Crop)
+        Spacer(GlanceModifier.width(7.dp))
+        Column(GlanceModifier.defaultWeight()) {
+            Text(it.name, style = TextStyle(color = White, fontSize = 12.sp, fontWeight = FontWeight.Medium), maxLines = 1)
+            Text(Billing.dueText(it.days), style = TextStyle(color = dueColor(it.days), fontSize = 10.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+        }
+        if (showAmount) {
+            Spacer(GlanceModifier.width(4.dp))
+            if (it.needsConfirm) {
+                Box(
+                    GlanceModifier.background(ImageProvider(R.drawable.widget_btn)).padding(horizontal = 8.dp, vertical = 4.dp)
+                        .clickable(actionRunCallback<ConfirmPaidAction>(actionParametersOf(ConfirmPaidAction.KEY to it.id))),
+                ) {
+                    Text("已付", style = TextStyle(color = ColorProvider(Color(0xFF4338CA)), fontSize = 11.sp, fontWeight = FontWeight.Bold))
+                }
+            } else {
+                Text(it.amount, style = TextStyle(color = White, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
             }
         }
     }
