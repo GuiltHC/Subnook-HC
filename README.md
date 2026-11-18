@@ -74,4 +74,4 @@ cd Subnook
 
 ## 许可证
 
-[MIT](LICENSE)
+[PolyForm Noncommercial 1.0.0](LICENSE)：可以免费用于个人、学习、研究等**非商业用途**，也可以 fork、修改和分发（需保留许可证和版权声明），但**禁止任何商业用途**。如需商用，请先通过 issue 联系作者。
