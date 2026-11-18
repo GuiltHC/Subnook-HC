@@ -26,7 +26,10 @@ Subnook 是一个简洁的 Android 订阅管理 App：记录各种会员 / 订�
 - 浅色 / 深色主题
 - 设置 → 关于里可以手动检查更新（不会自动联网检查）
 
-<p><img src="docs/screenshots/widget.png" width="300" alt="桌面小组件"></p>
+<p>
+  <img src="docs/screenshots/widget.png" width="300" alt="桌面小组件（4×2）">
+  <img src="docs/screenshots/widget-large.png" width="234" alt="桌面小组件（4×4，列表可滑动）">
+</p>
 
 ## 下载
 
