@@ -24,6 +24,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.runtime.mutableStateOf
+import com.subnook.app.ui.components.CurrencyPickerDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -83,6 +86,7 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
     val cs = MaterialTheme.colorScheme
     val cur = st.settings.displayCurrency
     val active = st.active
+    var pickCurrency by remember { mutableStateOf(false) }
     fun monthly(s: Subscription) = st.rates.convert(Billing.periodCost(s, SummaryPeriod.MONTH), s.currency, cur)
     val monthTotal = active.sumOf(::monthly)
 
@@ -121,7 +125,7 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item { PeriodTiles(st) }
+            item { PeriodTiles(st, onCurrency = { pickCurrency = true }) }
 
             if (active.isEmpty()) {
                 item {
@@ -152,7 +156,7 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
                                         Text(top.label, style = MaterialTheme.typography.titleMedium)
                                     }
                                     Text(
-                                        "每月 ${Currencies.formatList(top.value, cur)} · ${top.count} 个",
+                                        "每月 ${Currencies.format(top.value, cur)} · ${top.count} 个",
                                         style = MaterialTheme.typography.bodySmall.merge(TabularNums), color = cs.onSurfaceVariant,
                                     )
                                     Text(
@@ -175,7 +179,7 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
                     Column(Modifier.padding(16.dp)) {
                         val sum = perMonth.sum()
                         Row(verticalAlignment = Alignment.Bottom) {
-                            Text(Currencies.formatList(sum, cur), style = MaterialTheme.typography.headlineSmall.merge(TabularNums))
+                            Text(Currencies.format(sum, cur), style = MaterialTheme.typography.headlineSmall.merge(TabularNums))
                             Spacer(Modifier.width(8.dp))
                             Text("合计 · 最高 ${months[perMonth.indexOf(perMonth.max())].monthValue} 月", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
                         }
@@ -231,14 +235,18 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
                         byCur.forEach { (c, l) ->
                             val orig = l.sumOf { Billing.periodCost(it, SummaryPeriod.MONTH) }
                             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                                // 只有这一栏显示币种代码，方便区分 ¥(CNY) 和 JP¥ 等
                                 Box(
                                     Modifier.clip(RoundedCornerShape(8.dp)).background(cs.surfaceContainer).padding(horizontal = 8.dp, vertical = 3.dp),
-                                ) { Text(Currencies.name(c), style = MaterialTheme.typography.labelLarge) }
+                                ) { Text(c, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold) }
                                 Spacer(Modifier.width(10.dp))
-                                Text("${l.size} 个", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f))
+                                Text(
+                                    "${Currencies.name(c)} · ${l.size} 个", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                )
                                 Column(horizontalAlignment = Alignment.End) {
-                                    Text(Currencies.formatList(orig, c), style = MaterialTheme.typography.titleSmall.merge(TabularNums))
-                                    if (c != cur) Text("≈ " + Currencies.formatList(l.sumOf(::monthly), cur), style = MaterialTheme.typography.labelSmall, color = cs.outline)
+                                    Text(Currencies.format(orig, c), style = MaterialTheme.typography.titleSmall.merge(TabularNums))
+                                    if (c != cur) Text("≈ " + Currencies.format(l.sumOf(::monthly), cur), style = MaterialTheme.typography.labelSmall, color = cs.outline)
                                 }
                             }
                         }
@@ -249,8 +257,8 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
             item {
                 Group("已付款记录") {
                     Row(Modifier.padding(16.dp)) {
-                        StatCell("今年已付", Currencies.formatList(paidThisYear, cur), Modifier.weight(1f))
-                        StatCell("累计已付", Currencies.formatList(paidAll, cur), Modifier.weight(1f))
+                        StatCell("今年已付", Currencies.format(paidThisYear, cur), Modifier.weight(1f))
+                        StatCell("累计已付", Currencies.format(paidAll, cur), Modifier.weight(1f))
                         StatCell("付款笔数", "${payments.size}", Modifier.weight(0.7f))
                     }
                     if (payments.isNotEmpty()) {
@@ -265,7 +273,7 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
                                     LocalDate.ofEpochDay(p.billingDay).let { "${it.monthValue}月${it.dayOfMonth}日  " },
                                     style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant,
                                 )
-                                Text(Currencies.formatList(p.amount, p.currency), style = MaterialTheme.typography.labelLarge.merge(TabularNums))
+                                Text(Currencies.format(p.amount, p.currency), style = MaterialTheme.typography.labelLarge.merge(TabularNums))
                             }
                         }
                         Spacer(Modifier.height(10.dp))
@@ -275,18 +283,36 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
             item { Spacer(Modifier.navigationBarsPadding()) }
         }
     }
+
+    if (pickCurrency) {
+        CurrencyPickerDialog(cur, onDismiss = { pickCurrency = false }) {
+            vm.setCurrency(it); pickCurrency = false
+        }
+    }
 }
 
 @Composable
-private fun PeriodTiles(st: UiState) {
+private fun PeriodTiles(st: UiState, onCurrency: () -> Unit) {
     val extra = LocalExtra.current
     val cur = st.settings.displayCurrency
     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(extra.heroBrush).padding(18.dp)) {
         Column {
-            // 每月作为主数字；每周/每年/每天放到下面一排，CN¥ 前缀变长后也不会被截断
-            Text("每月平均支出", style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.75f))
+            // 每月作为主数字；每周/每年/每天放到下面一排。币种在右上角切换（与首页紫色卡片一致），金额里不再带代码
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("每月平均支出", style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.75f))
+                Spacer(Modifier.weight(1f))
+                Row(
+                    Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.16f)).clickable(onClick = onCurrency)
+                        .padding(start = 12.dp, end = 6.dp, top = 5.dp, bottom = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("$cur · ${Currencies.name(cur)}", style = MaterialTheme.typography.labelLarge, color = Color.White)
+                    Icon(Icons.Rounded.KeyboardArrowDown, null, Modifier.size(18.dp), tint = Color.White)
+                }
+            }
+            Spacer(Modifier.height(4.dp))
             Text(
-                Currencies.formatList(st.total(SummaryPeriod.MONTH), cur),
+                Currencies.format(st.total(SummaryPeriod.MONTH), cur),
                 style = MaterialTheme.typography.headlineMedium.merge(TabularNums), color = Color.White, maxLines = 1,
             )
             Spacer(Modifier.height(14.dp))
@@ -299,7 +325,7 @@ private fun PeriodTiles(st: UiState) {
                     Column(Modifier.weight(if (i == 1) 1.25f else 1f)) {
                         Text(label, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.65f))
                         Text(
-                            Currencies.formatList(v, cur),
+                            Currencies.format(v, cur),
                             style = MaterialTheme.typography.titleSmall.merge(TabularNums), color = Color.White,
                             maxLines = 1, overflow = TextOverflow.Ellipsis,
                         )
@@ -349,7 +375,7 @@ private fun LegendRow(s: Slice, total: Double, cur: String) {
             style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.width(40.dp), textAlign = TextAlign.End,
         )
         Text(
-            Currencies.formatList(s.value, cur), style = MaterialTheme.typography.labelLarge.merge(TabularNums),
+            Currencies.format(s.value, cur), style = MaterialTheme.typography.labelLarge.merge(TabularNums),
             modifier = Modifier.width(92.dp), textAlign = TextAlign.End, maxLines = 1,
         )
     }
@@ -374,7 +400,7 @@ private fun MonthBars(months: List<YearMonth>, values: List<Double>, cur: String
     var selected by androidx.compose.runtime.remember { mutableIntStateOf(values.indexOf(values.max())) }
     Column {
         Text(
-            "${months[selected].year}年${months[selected].monthValue}月：${Currencies.formatList(values[selected], cur)}",
+            "${months[selected].year}年${months[selected].monthValue}月：${Currencies.format(values[selected], cur)}",
             style = MaterialTheme.typography.labelLarge, color = cs.primary,
         )
         Spacer(Modifier.height(10.dp))
@@ -420,7 +446,7 @@ private fun RankRow(rank: Int, s: Subscription, value: Double, total: Double, cu
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(s.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                Text(Currencies.formatList(value, cur), style = MaterialTheme.typography.labelLarge.merge(TabularNums))
+                Text(Currencies.format(value, cur), style = MaterialTheme.typography.labelLarge.merge(TabularNums))
             }
             Spacer(Modifier.height(5.dp))
             Box(Modifier.fillMaxWidth().height(5.dp).clip(CircleShape).background(cs.surfaceContainer)) {

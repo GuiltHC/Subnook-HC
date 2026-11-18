@@ -1,6 +1,7 @@
 package com.subnook.app.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -14,8 +15,18 @@ enum class SummaryPeriod(val label: String, val unitLabel: String) {
     WEEK("周", "每周"), MONTH("月", "每月"), YEAR("年", "每年")
 }
 
-enum class SortOrder(val label: String) {
-    NEXT_DATE("按下次付款日期"), AMOUNT("按月均金额"), NAME("按名称")
+/**
+ * 首页订阅列表排序。AMOUNT / NAME / NEXT_DATE 是旧版本就有的名字，保存在设置和备份里，不能改名。
+ * [defaultAsc]：刚选中这个排序时默认的方向；[ascHint] / [descHint]：正序 / 倒序的含义说明。
+ */
+enum class SortOrder(val label: String, val short: String, val defaultAsc: Boolean, val ascHint: String, val descHint: String) {
+    NEXT_DATE("下次付款日期", "日期", true, "近 → 远", "远 → 近"),
+    AMOUNT("月均金额", "金额", false, "低 → 高", "高 → 低"),
+    NAME("名称", "名称", true, "A → Z", "Z → A"),
+    CATEGORY("分类", "分类", true, "影视 → 其他", "其他 → 影视"),
+    CREATED("添加时间", "添加", false, "旧 → 新", "新 → 旧"),
+    /** 长按拖动排出来的顺序，没有正序 / 倒序 */
+    MANUAL("手动排序", "手动", true, "", ""),
 }
 
 enum class ThemeMode(val label: String) { SYSTEM("跟随系统"), LIGHT("浅色"), DARK("深色") }
@@ -27,8 +38,12 @@ data class AppSettings(
     val notifyMinute: Int = 0,
     val period: SummaryPeriod = SummaryPeriod.MONTH,
     val sort: SortOrder = SortOrder.NEXT_DATE,
+    /** null = 用该排序的默认方向（旧版本没有这个设置） */
+    val sortAsc: Boolean? = null,
     val theme: ThemeMode = ThemeMode.SYSTEM,
-)
+) {
+    val sortAscending: Boolean get() = sortAsc ?: sort.defaultAsc
+}
 
 private val Context.dataStore by preferencesDataStore("settings")
 
@@ -39,6 +54,7 @@ class SettingsRepository(private val context: Context) {
         val minute = intPreferencesKey("notify_minute")
         val period = stringPreferencesKey("period")
         val sort = stringPreferencesKey("sort")
+        val sortAsc = booleanPreferencesKey("sort_asc")
         val theme = stringPreferencesKey("theme")
     }
 
@@ -49,6 +65,7 @@ class SettingsRepository(private val context: Context) {
             notifyMinute = p[K.minute] ?: 0,
             period = p[K.period]?.let { runCatching { SummaryPeriod.valueOf(it) }.getOrNull() } ?: SummaryPeriod.MONTH,
             sort = p[K.sort]?.let { runCatching { SortOrder.valueOf(it) }.getOrNull() } ?: SortOrder.NEXT_DATE,
+            sortAsc = p[K.sortAsc],
             theme = p[K.theme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
         )
     }
@@ -60,7 +77,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setCurrency(c: String) = context.dataStore.edit { it[K.currency] = c }
     suspend fun setNotifyTime(h: Int, m: Int) = context.dataStore.edit { it[K.hour] = h; it[K.minute] = m }
     suspend fun setPeriod(p: SummaryPeriod) = context.dataStore.edit { it[K.period] = p.name }
-    suspend fun setSort(s: SortOrder) = context.dataStore.edit { it[K.sort] = s.name }
+    suspend fun setSort(s: SortOrder, asc: Boolean) = context.dataStore.edit { it[K.sort] = s.name; it[K.sortAsc] = asc }
 
     suspend fun replace(s: AppSettings) = context.dataStore.edit {
         it[K.currency] = s.displayCurrency
@@ -68,6 +85,7 @@ class SettingsRepository(private val context: Context) {
         it[K.minute] = s.notifyMinute
         it[K.period] = s.period.name
         it[K.sort] = s.sort.name
+        s.sortAsc?.let { v -> it[K.sortAsc] = v } ?: it.remove(K.sortAsc)
         it[K.theme] = s.theme.name
     }
 }

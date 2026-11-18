@@ -2,6 +2,7 @@
 # 抓取预设图标到 app/src/main/res/drawable-nodpi/preset_<key>.(png|jpg|webp)
 # 顺序：Google Play 商店图标 -> App Store(中国区，找不到再查美区) 图标 -> 网站 favicon
 # 注意：腾讯视频/芒果TV 的 App Store 图标常带活动文案，所以 presets.psv 里只留了域名，走 favicon
+# 起点读书 / ABEMA 的图标同理：起点是手工裁掉 App Store 图标底部促销条后的版本，--force 重抓前先备份
 # 用法: bash tools/fetch_icons.sh [--force]     已存在的图标默认跳过
 set -u
 cd "$(dirname "$0")/.."
@@ -43,8 +44,11 @@ while IFS='|' read -r key name cat color price cur cnt unit method play itunes d
   fi
   if [ -z "$got" ] && [ -n "$itunes" ]; then
     case "$itunes" in
-      id:*) resp=$(curl -s -m 25 -G "https://itunes.apple.com/lookup" -d "bundleId=${itunes#id:}" -d country=cn)
-            printf "%s" "$resp" | grep -q artworkUrl512 || resp=$(curl -s -m 25 -G "https://itunes.apple.com/lookup" -d "bundleId=${itunes#id:}" -d country=us);;
+      id:*) # 按 bundleId 精确查找；依次试中国区、美区及其他常用地区
+            for cc in cn us jp tw hk gb; do
+              resp=$(curl -s -m 25 -G "https://itunes.apple.com/lookup" -d "bundleId=${itunes#id:}" -d country=$cc)
+              printf "%s" "$resp" | grep -q artworkUrl512 && break
+            done;;
       *)    # 可写成 "hk:My CMHK" 指定 App Store 地区；中日文逐字节百分号编码（Windows 下 curl 传中文参数会乱码）
             cc=us; term=$itunes
             case "$itunes" in [a-z][a-z]:*) cc=${itunes%%:*}; term=${itunes#*:};; esac

@@ -17,8 +17,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // 发版时：versionCode +1；versionName 按「主版本.功能.修复」递增，并在仓库根目录 CHANGELOG.md 记录
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.0"
     }
 
     signingConfigs {

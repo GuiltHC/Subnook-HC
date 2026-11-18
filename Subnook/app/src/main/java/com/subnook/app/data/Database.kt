@@ -11,6 +11,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
 import androidx.room.Upsert
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -60,6 +62,18 @@ interface SubscriptionDao {
     @Query("SELECT * FROM payments ORDER BY billingDay DESC")
     fun observeAllPayments(): Flow<List<PaymentRecord>>
 
+    @Query("UPDATE subscriptions SET sortIndex = :index WHERE id = :id")
+    suspend fun setSortIndex(id: Long, index: Int)
+
+    /** 按 [ids] 的顺序写入手动排序位置 */
+    @Transaction
+    suspend fun setManualOrder(ids: List<Long>) {
+        ids.forEachIndexed { i, id -> setSortIndex(id, i) }
+    }
+
+    @Query("SELECT COALESCE(MAX(sortIndex), -1) FROM subscriptions")
+    suspend fun maxSortIndex(): Int
+
     @Transaction
     suspend fun replaceAll(subs: List<Subscription>, payments: List<PaymentRecord>) {
         deleteAll() // payments cascade
@@ -68,12 +82,21 @@ interface SubscriptionDao {
     }
 }
 
-@Database(entities = [Subscription::class, PaymentRecord::class], version = 1, exportSchema = false)
+@Database(entities = [Subscription::class, PaymentRecord::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun dao(): SubscriptionDao
 
     companion object {
         fun build(context: Context): AppDatabase =
-            Room.databaseBuilder(context, AppDatabase::class.java, "subnook.db").build()
+            Room.databaseBuilder(context, AppDatabase::class.java, "subnook.db")
+                .addMigrations(MIGRATION_1_2)
+                .build()
+
+        /** v2：新增手动排序位置 */
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE subscriptions ADD COLUMN sortIndex INTEGER NOT NULL DEFAULT 0")
+            }
+        }
     }
 }

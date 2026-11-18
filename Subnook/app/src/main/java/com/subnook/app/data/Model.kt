@@ -1,5 +1,6 @@
 package com.subnook.app.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -74,6 +75,8 @@ data class Subscription(
     /** 手动付款逾期提醒最后发送的日期 */
     val overdueNotifiedDay: Long? = null,
     val createdAt: Long = System.currentTimeMillis(),
+    /** 手动排序的位置，越小越靠前（DB v2 新增） */
+    @ColumnInfo(defaultValue = "0") val sortIndex: Int = 0,
 )
 
 @Serializable

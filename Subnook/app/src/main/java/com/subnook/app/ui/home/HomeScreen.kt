@@ -26,7 +26,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Autorenew
 import androidx.compose.material.icons.rounded.Check
@@ -35,6 +34,27 @@ import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.TouchApp
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.Category
+import androidx.compose.material.icons.rounded.DragIndicator
+import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.Payments
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.SortByAlpha
+import androidx.compose.material.icons.rounded.SwapVert
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -70,7 +90,6 @@ import com.subnook.app.ui.UiState
 import com.subnook.app.ui.components.CurrencyPickerDialog
 import com.subnook.app.ui.components.PageHeader
 import com.subnook.app.ui.components.Pill
-import com.subnook.app.ui.components.RoundIconButton
 import com.subnook.app.ui.components.SectionHeader
 import com.subnook.app.ui.components.SoftCard
 import com.subnook.app.ui.components.SubIcon
@@ -118,6 +137,134 @@ private fun FilterSlider(selected: RenewFilter, onSelect: (RenewFilter) -> Unit)
     }
 }
 
+private fun SortOrder.icon(): ImageVector = when (this) {
+    SortOrder.NEXT_DATE -> Icons.Rounded.Event
+    SortOrder.AMOUNT -> Icons.Rounded.Payments
+    SortOrder.NAME -> Icons.Rounded.SortByAlpha
+    SortOrder.CATEGORY -> Icons.Rounded.Category
+    SortOrder.CREATED -> Icons.Rounded.Schedule
+    SortOrder.MANUAL -> Icons.Rounded.DragIndicator
+}
+
+/**
+ * 订阅列表排序：胶囊按钮显示「依据 + 方向箭头」，和旁边的筛选滑块同高同字号。
+ * 菜单分两段：排序依据（选中后菜单不关，方便接着选方向）、顺序（正序 / 倒序，附带含义说明）。
+ */
+@Composable
+private fun SortButton(
+    current: SortOrder,
+    ascending: Boolean,
+    expanded: Boolean,
+    onExpand: (Boolean) -> Unit,
+    onPick: (SortOrder, Boolean) -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    Box {
+        Row(
+            Modifier.height(34.dp).clip(CircleShape).background(cs.surfaceContainerHigh).clickable { onExpand(true) }
+                .padding(start = 12.dp, end = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(current.short, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, maxLines = 1)
+            Spacer(Modifier.width(3.dp))
+            Icon(
+                when {
+                    current == SortOrder.MANUAL -> Icons.Rounded.SwapVert
+                    ascending -> Icons.Rounded.ArrowUpward
+                    else -> Icons.Rounded.ArrowDownward
+                },
+                contentDescription = "排序：${current.label}",
+                modifier = Modifier.size(14.dp), tint = cs.onSurfaceVariant,
+            )
+        }
+        DropdownMenu(
+            expanded, onDismissRequest = { onExpand(false) },
+            shape = RoundedCornerShape(18.dp), containerColor = cs.surfaceContainerLowest,
+        ) {
+            MenuLabel("排序依据")
+            SortOrder.entries.forEach { s ->
+                SortMenuItem(
+                    icon = s.icon(), text = s.label, selected = s == current,
+                    hint = if (s == SortOrder.MANUAL) "长按拖动" else null,
+                ) {
+                    // 换依据时用它的默认方向；手动排序没有方向
+                    if (s != current) onPick(s, s.defaultAsc)
+                    if (s == SortOrder.MANUAL) onExpand(false)
+                }
+            }
+            if (current != SortOrder.MANUAL) {
+                HorizontalDivider(Modifier.padding(vertical = 4.dp), color = cs.outlineVariant)
+                MenuLabel("顺序")
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    listOf(true to "正序", false to "倒序").forEach { (asc, label) ->
+                        val sel = asc == ascending
+                        Column(
+                            Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
+                                .background(if (sel) cs.primary.copy(alpha = 0.12f) else cs.surfaceContainer)
+                                .clickable { onPick(current, asc); onExpand(false) }
+                                .padding(vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    if (asc) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward, null,
+                                    Modifier.size(15.dp), tint = if (sel) cs.primary else cs.onSurfaceVariant,
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    label, style = MaterialTheme.typography.bodyMedium,
+                                    color = if (sel) cs.primary else cs.onSurface,
+                                    fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
+                                )
+                            }
+                            Text(
+                                if (asc) current.ascHint else current.descHint,
+                                style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MenuLabel(text: String) {
+    Text(
+        text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
+    )
+}
+
+/** 菜单项：统一 bodyMedium 字号；选中项用主色加粗 + 勾，右侧灰色小字说明 */
+@Composable
+private fun SortMenuItem(icon: ImageVector, text: String, selected: Boolean, hint: String?, onClick: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val color = if (selected) cs.primary else cs.onSurface
+    DropdownMenuItem(
+        modifier = Modifier.height(44.dp),
+        leadingIcon = { Icon(icon, null, Modifier.size(18.dp), tint = if (selected) cs.primary else cs.onSurfaceVariant) },
+        text = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text, style = MaterialTheme.typography.bodyMedium, color = color,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                )
+                if (!hint.isNullOrEmpty()) {
+                    Spacer(Modifier.width(10.dp))
+                    Text(hint, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                }
+            }
+        },
+        trailingIcon = { Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), tint = if (selected) cs.primary else Color.Transparent) },
+        onClick = onClick,
+    )
+}
+
 @Composable
 fun HomeScreen(vm: MainViewModel, onAdd: () -> Unit, onOpen: (Long) -> Unit, onStats: () -> Unit = {}) {
     val st by vm.state.collectAsState()
@@ -130,29 +277,65 @@ fun HomeScreen(vm: MainViewModel, onAdd: () -> Unit, onOpen: (Long) -> Unit, onS
     val pending = st.active.filter { Billing.isPayable(it, today) }.sortedBy { it.nextBillingDay }
     val extra = LocalExtra.current
 
+    // ---- 长按拖动排序 ----
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val reorder = remember(listState) {
+        with(density) { ReorderState(listState, scope, edgeTopPx = 72.dp.toPx(), edgeBottomPx = 160.dp.toPx()) }
+    }
+    val computedShown = st.sortedActive().filter(renewFilter.test)
+    val computedIds = computedShown.map { it.id }
+    // 拖动中（以及松手后、数据库写完前）显示的顺序，避免松手瞬间闪回旧顺序
+    var dragIds by remember { mutableStateOf<List<Long>?>(null) }
+    var moved by remember { mutableStateOf(false) }
+    LaunchedEffect(computedIds, renewFilter) {
+        val d = dragIds ?: return@LaunchedEffect
+        if (reorder.draggingKey == null && (d == computedIds || d.toSet() != computedIds.toSet())) dragIds = null
+    }
+    val activeById = st.active.associateBy { it.id }
+    val shown = dragIds?.mapNotNull { activeById[it] } ?: computedShown
+    reorder.canDrag = { key -> key is Long && shown.any { it.id == key } }
+    reorder.onStart = {
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        dragIds = shown.map { it.id }
+        moved = false
+    }
+    reorder.onMove = { from, to ->
+        dragIds = dragIds?.toMutableList()?.apply {
+            val i = indexOf(from as Long)
+            val j = indexOf(to as Long)
+            if (i >= 0 && j >= 0) add(j, removeAt(i))
+        }
+        moved = true
+        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+    }
+    reorder.onEnd = {
+        val d = dragIds
+        if (moved && d != null) {
+            // 筛选「自动 / 手动」时只拖了一部分：把新顺序填回它们在完整列表里原来占的位置
+            val base = st.sortedActive().map { it.id }.toMutableList()
+            val slots = base.indices.filter { base[it] in d.toSet() }
+            slots.forEachIndexed { k, slot -> base[slot] = d[k] }
+            if (st.settings.sort != SortOrder.MANUAL) vm.toast("已切换为手动排序")
+            vm.reorder(base)
+        } else {
+            dragIds = null
+        }
+    }
+
     LazyColumn(
-        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).reorderable(reorder),
+        state = listState,
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item {
             PageHeader(
-                title = "我的订阅",
+                title = "Subnook",
                 subtitle = today.format(DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.CHINA)),
             ) {
-                Box {
-                    RoundIconButton(Icons.AutoMirrored.Rounded.Sort, "排序", { sortMenu = true })
-                    DropdownMenu(sortMenu, onDismissRequest = { sortMenu = false }, shape = RoundedCornerShape(16.dp)) {
-                        SortOrder.entries.forEach { s ->
-                            DropdownMenuItem(
-                                text = { Text(s.label) },
-                                trailingIcon = { if (s == st.settings.sort) Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.primary) },
-                                onClick = { vm.setSort(s); sortMenu = false },
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.width(10.dp))
                 Box(
                     Modifier.size(42.dp).shadow(10.dp, CircleShape, spotColor = Color(0xFF4F46E5)).clip(CircleShape)
                         .background(extra.accentBrush).clickable(onClick = onAdd),
@@ -174,9 +357,13 @@ fun HomeScreen(vm: MainViewModel, onAdd: () -> Unit, onOpen: (Long) -> Unit, onS
             item { EmptyHint(onAdd) }
         }
         if (st.active.isNotEmpty()) {
-            val shown = st.sortedActive().filter(renewFilter.test)
             item {
                 SectionHeader("订阅中", shown.size) {
+                    SortButton(
+                        st.settings.sort, st.settings.sortAscending,
+                        expanded = sortMenu, onExpand = { sortMenu = it }, onPick = vm::setSort,
+                    )
+                    Spacer(Modifier.width(8.dp))
                     FilterSlider(renewFilter) { renewFilter = it }
                 }
             }
@@ -186,7 +373,22 @@ fun HomeScreen(vm: MainViewModel, onAdd: () -> Unit, onOpen: (Long) -> Unit, onS
                     color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
                 )
             }
-            items(shown, key = { it.id }) { s -> SubCard(s, st, today) { onOpen(s.id) } }
+            items(shown, key = { it.id }) { s ->
+                val dragging = reorder.isDragging(s.id)
+                Box(
+                    Modifier
+                        .animateItem(placementSpec = if (dragging) null else spring(stiffness = Spring.StiffnessMediumLow))
+                        .zIndex(if (dragging) 1f else 0f)
+                        .graphicsLayer {
+                            if (dragging) {
+                                translationY = reorder.draggingOffset
+                                scaleX = 1.03f; scaleY = 1.03f
+                                shadowElevation = 12.dp.toPx()
+                                shape = RoundedCornerShape(22.dp)
+                            }
+                        },
+                ) { SubCard(s, st, today) { onOpen(s.id) } }
+            }
         }
         if (st.inactive.isNotEmpty()) {
             item {
@@ -197,7 +399,7 @@ fun HomeScreen(vm: MainViewModel, onAdd: () -> Unit, onOpen: (Long) -> Unit, onS
                     )
                 }
             }
-            if (showInactive) items(st.inactive, key = { it.id }) { s ->
+            if (showInactive) items(st.sortedInactive(), key = { it.id }) { s ->
                 Box(Modifier.alpha(0.6f)) { SubCard(s, st, today) { onOpen(s.id) } }
             }
         }
@@ -481,7 +683,7 @@ private fun EmptyHint(onAdd: () -> Unit) {
             Text("还没有订阅", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(6.dp))
             Text(
-                "从 220+ 常用软件预设里一键添加，\n自动续费会自动滚动账单日",
+                "从 250+ 常用软件预设里一键添加，\n自动续费会自动滚动账单日",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(18.dp))

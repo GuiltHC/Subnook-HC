@@ -75,6 +75,12 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.subnook.app.BuildConfig
 import com.subnook.app.data.Currencies
+import com.subnook.app.data.UpdateChecker
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.SystemUpdate
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import com.subnook.app.notify.Scheduler
 import com.subnook.app.ui.MainViewModel
 import com.subnook.app.ui.components.CurrencyPickerDialog
@@ -101,7 +107,15 @@ fun SettingsScreen(vm: MainViewModel) {
     val exactOk = remember(tick) { Scheduler.canExact(ctx) }
     val batteryOk = remember(tick) { ctx.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(ctx.packageName) }
 
-    val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
+    val scope = rememberCoroutineScope()
+    var checking by remember { mutableStateOf(false) }
+    var updateResult by remember { mutableStateOf<UpdateChecker.Result?>(null) }
+    val openUrl: (String) -> Unit = { url ->
+        runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+            .onFailure { vm.toast("没有可以打开链接的浏览器") }
+    }
+
+    val notifLauncher =rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
     // 导出和导入的文件选择器都默认打开「下载」文件夹，存和找在同一个地方
     val exportLauncher = rememberLauncherForActivityResult(ExportToDownloads()) { uri ->
         uri?.let(vm::export)
@@ -168,7 +182,7 @@ fun SettingsScreen(vm: MainViewModel) {
                 }
             }
             Divider()
-            Item(Icons.Rounded.BatteryChargingFull, Color(0xFF10B981), "忽略电池优化", if (batteryOk) "已忽略，后台提醒更可靠" else "ColorOS 后台管控较严，建议开启", ok = batteryOk) {
+            Item(Icons.Rounded.BatteryChargingFull, Color(0xFF10B981), "忽略电池优化", if (batteryOk) "已忽略，后台提醒更可靠" else "部分系统会限制后台运行，开启后提醒更准时", ok = batteryOk) {
                 if (!batteryOk) ctx.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${ctx.packageName}")))
                 else ctx.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
             }
@@ -181,6 +195,30 @@ fun SettingsScreen(vm: MainViewModel) {
             Divider()
             Item(Icons.Rounded.Download, Color(0xFF3B82F6), "导入备份", "从 JSON 文件恢复，会覆盖当前全部数据") {
                 importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+            }
+        }
+
+        Group("关于") {
+            Item(Icons.Rounded.Info, Color(0xFF64748B), "Subnook", "版本 ${BuildConfig.VERSION_NAME} · MIT 开源") {
+                openUrl(UpdateChecker.REPO_URL)
+            }
+            Divider()
+            Item(Icons.Rounded.Code, Color(0xFF24292F), "GitHub 仓库", UpdateChecker.REPO_URL.removePrefix("https://")) {
+                openUrl(UpdateChecker.REPO_URL)
+            }
+            Divider()
+            Item(
+                Icons.Rounded.SystemUpdate, Color(0xFF22C55E), "检查更新",
+                if (checking) "正在检查…" else "从 GitHub Releases 获取最新版本",
+            ) {
+                if (checking) return@Item
+                checking = true
+                scope.launch {
+                    runCatching { UpdateChecker.check(BuildConfig.VERSION_NAME) }
+                        .onSuccess { updateResult = it }
+                        .onFailure { vm.toast("检查更新失败：${it.message ?: it.javaClass.simpleName}") }
+                    checking = false
+                }
             }
         }
 
@@ -203,6 +241,39 @@ fun SettingsScreen(vm: MainViewModel) {
             confirmButton = { TextButton(onClick = { vm.setNotifyTime(tp.hour, tp.minute); timeDlg = false }) { Text("确定") } },
             dismissButton = { TextButton(onClick = { timeDlg = false }) { Text("取消") } },
         )
+    }
+    updateResult?.let { r ->
+        val dismiss = { updateResult = null }
+        when (r) {
+            is UpdateChecker.Result.NewVersion -> AlertDialog(
+                onDismissRequest = dismiss,
+                title = { Text("发现新版本 ${r.release.version}") },
+                text = {
+                    Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                        Text("当前版本 ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (r.release.notes.isNotBlank()) {
+                            Spacer(Modifier.height(10.dp))
+                            Text(r.release.notes, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                },
+                confirmButton = { TextButton(onClick = { openUrl(r.release.url); dismiss() }) { Text("前往下载") } },
+                dismissButton = { TextButton(onClick = dismiss) { Text("以后再说") } },
+            )
+            is UpdateChecker.Result.UpToDate -> AlertDialog(
+                onDismissRequest = dismiss,
+                title = { Text("已是最新版本") },
+                text = { Text("当前版本 ${BuildConfig.VERSION_NAME}，GitHub 上的最新版本是 ${r.latest}。") },
+                confirmButton = { TextButton(onClick = dismiss) { Text("好的") } },
+            )
+            UpdateChecker.Result.NoRelease -> AlertDialog(
+                onDismissRequest = dismiss,
+                title = { Text("暂无发布版本") },
+                text = { Text("GitHub 仓库里还没有发布 Release，可以去仓库页面查看最新代码。") },
+                confirmButton = { TextButton(onClick = { openUrl(UpdateChecker.RELEASES_URL); dismiss() }) { Text("打开仓库") } },
+                dismissButton = { TextButton(onClick = dismiss) { Text("关闭") } },
+            )
+        }
     }
     importUri?.let { uri ->
         AlertDialog(

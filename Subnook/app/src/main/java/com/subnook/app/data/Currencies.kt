@@ -34,6 +34,7 @@ object Currencies {
         CurrencyInfo("PKR", "巴基斯坦卢比", "₨"),
         CurrencyInfo("UAH", "乌克兰格里夫纳", "₴"),
         CurrencyInfo("KZT", "哈萨克斯坦坚戈", "₸"),
+        CurrencyInfo("HUF", "匈牙利福林", "Ft"),
     )
     private val byCode = list.associateBy { it.code }
 
@@ -41,7 +42,10 @@ object Currencies {
     fun name(code: String) = byCode[code]?.name ?: code
 
     /** 0 位小数的币种 */
-    private val noDecimals = setOf("JPY", "KRW", "VND", "IDR")
+    private val noDecimals = setOf("JPY", "KRW", "VND", "IDR", "HUF")
+
+    /** 符号写在数字后面的币种，例如 "2,990 Ft" */
+    private val suffixSymbol = setOf("HUF")
 
     fun format(amount: Double, code: String): String = formatWith(symbol(code), amount, code)
 
@@ -50,7 +54,8 @@ object Currencies {
         val cents = kotlin.math.round(amount * 100).toLong()
         val whole = cents % 100 == 0L
         val digits = if (code in noDecimals || whole) 0 else 2
-        val sym = symbol.trimEnd()
+        val sym = symbol.trim()
+        if (code in suffixSymbol) return "%,.${digits}f".format(amount) + " " + sym
         // 以字母结尾的符号（CHF、RM、Rp）和数字之间留个空格
         val sep = if (sym.lastOrNull()?.isLetter() == true) " " else ""
         return sym + sep + "%,.${digits}f".format(amount)
@@ -73,6 +78,6 @@ object Currencies {
         "CHF" to 0.80, "NZD" to 1.74, "INR" to 88.5, "RUB" to 81.0, "TRY" to 42.0, "THB" to 32.5,
         "MYR" to 4.20, "PHP" to 58.5, "VND" to 26300.0, "IDR" to 16600.0, "ARS" to 1450.0,
         "BRL" to 5.35, "MXN" to 18.4, "NGN" to 1460.0, "EGP" to 47.5, "PKR" to 282.0, "UAH" to 41.8,
-        "KZT" to 525.0,
+        "KZT" to 525.0, "HUF" to 335.0,
     )
 }

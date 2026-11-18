@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
@@ -48,6 +49,8 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
+import androidx.glance.appwidget.lazy.LazyColumn
+import androidx.glance.appwidget.lazy.items
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -84,7 +87,21 @@ private data class WidgetData(
 )
 
 class SubnookWidget : GlanceAppWidget() {
-    override val sizeMode = SizeMode.Exact
+    /**
+     * 用 Responsive 而不是 Exact：部分桌面（如 ColorOS）上报给小组件的尺寸和实际显示的不一致，
+     * 按上报尺寸排版会被截断或留空。Responsive 由桌面按实际大小挑「放得下的最大一份」。
+     * 订阅列表本身可以滑动，这些档位只用来决定用小布局 / 紧凑标题 / 大标题（紧凑标题的分界约 176dp）。
+     */
+    override val sizeMode = SizeMode.Responsive(
+        setOf(
+            DpSize(110.dp, 110.dp),
+            DpSize(200.dp, 110.dp),
+            DpSize(200.dp, 140.dp),
+            DpSize(200.dp, 176.dp),
+            DpSize(200.dp, 220.dp),
+            DpSize(200.dp, 300.dp),
+        ),
+    )
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val app = App.get(context)
@@ -112,7 +129,8 @@ class SubnookWidget : GlanceAppWidget() {
         val next30 = active.sumOf { s ->
             Billing.upcoming(s, today, today.plusDays(29)).size * rates.convert(s.amount, s.currency, cur)
         }
-        val items = active.sortedBy { it.nextBillingDay }.take(8).map { s ->
+        // 列表可以滑动，多给一些（RemoteViews 有大小限制，不要无限多）
+        val items = active.sortedBy { it.nextBillingDay }.take(30).map { s ->
             val date = LocalDate.ofEpochDay(s.nextBillingDay)
             WidgetItem(
                 id = s.id,
@@ -172,17 +190,33 @@ private val White55 = ColorProvider(Color.White.copy(alpha = 0.55f))
 @Composable
 private fun Content(d: WidgetData) {
     val size = LocalSize.current
-    val small = size.width < 200.dp || size.height < 150.dp
+    val fontScale = androidx.glance.LocalContext.current.resources.configuration.fontScale.coerceAtLeast(1f)
+    val small = size.width < 200.dp || size.height < 110.dp
     Box(
         GlanceModifier.fillMaxSize()
             .appWidgetBackground()
             .cornerRadius(26.dp)
             .background(ImageProvider(R.drawable.widget_bg))
             .clickable(actionStartActivity<MainActivity>())
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = PAD_V.dp),
     ) {
-        if (small) Small(d) else Large(d, size.height.value)
+        if (small) Small(d) else Large(d, compactHeader = useCompactHeader(size.height.value, fontScale))
     }
+}
+
+private const val PAD_V = 12f
+private const val ROW_GAP = 6f
+private const val ROW_H = 44f
+
+/**
+ * 订阅列表可以上下滑动，铺满标题下面的全部空间。
+ * 小组件比较矮时（大标题下面连两行都放不下），换成单行紧凑标题，让列表多露出一些。
+ * 文字高度按系统字体缩放估算。
+ */
+private fun useCompactHeader(heightDp: Float, fontScale: Float): Boolean {
+    val inner = heightDp - PAD_V * 2
+    val listSpace = inner - 52f * fontScale - ROW_GAP
+    return listSpace < ROW_H * 2 + ROW_GAP
 }
 
 @Composable
@@ -214,31 +248,47 @@ private fun Small(d: WidgetData) {
 }
 
 @Composable
-private fun Large(d: WidgetData, heightDp: Float) {
+private fun Large(d: WidgetData, compactHeader: Boolean) {
     Column(GlanceModifier.fillMaxSize()) {
-        Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-            Column(GlanceModifier.defaultWeight()) {
-                Text("每月平均支出", style = TextStyle(color = White70, fontSize = 12.sp))
-                val big = Currencies.formatList(d.monthly, d.currency)
-                Text(big, style = TextStyle(color = White, fontSize = fitSize(big, 26f, 9), fontWeight = FontWeight.Bold), maxLines = 1)
+        val big = Currencies.formatList(d.monthly, d.currency)
+        val next30 = Currencies.formatList(d.next30, d.currency)
+        if (compactHeader) {
+            // 单行紧凑标题：给订阅列表腾出一行
+            Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("每月 ", style = TextStyle(color = White70, fontSize = 12.sp))
+                Text(big, style = TextStyle(color = White, fontSize = fitSize(big, 20f, 10), fontWeight = FontWeight.Bold), maxLines = 1)
+                Spacer(GlanceModifier.defaultWeight())
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("未来 30 天", style = TextStyle(color = White55, fontSize = 10.sp))
+                    Text(next30, style = TextStyle(color = White, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text("未来 30 天", style = TextStyle(color = White55, fontSize = 11.sp))
-                Text(Currencies.formatList(d.next30, d.currency), style = TextStyle(color = White, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+        } else {
+            Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                Column(GlanceModifier.defaultWeight()) {
+                    Text("每月平均支出", style = TextStyle(color = White70, fontSize = 12.sp))
+                    Text(big, style = TextStyle(color = White, fontSize = fitSize(big, 26f, 9), fontWeight = FontWeight.Bold), maxLines = 1)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("未来 30 天", style = TextStyle(color = White55, fontSize = 11.sp))
+                    Text(next30, style = TextStyle(color = White, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                }
             }
         }
-        Spacer(GlanceModifier.height(8.dp))
-        Spacer(GlanceModifier.defaultWeight())
+        Spacer(GlanceModifier.height(ROW_GAP.dp))
         if (d.items.isEmpty()) {
             Box(GlanceModifier.fillMaxWidth().defaultWeight(), contentAlignment = Alignment.Center) {
                 Text("还没有订阅，点此添加", style = TextStyle(color = White70, fontSize = 13.sp))
             }
         } else {
-            // 每行约 50dp，按高度决定显示几条
-            val rows = ((heightDp - 92f) / 50f).toInt().coerceIn(1, 6)
-            d.items.take(rows).forEachIndexed { i, item ->
-                if (i > 0) Spacer(GlanceModifier.height(6.dp))
-                ItemRow(item)
+            // 可滑动列表：放得下几条就显示几条，其余上下滑动查看
+            LazyColumn(GlanceModifier.fillMaxWidth().defaultWeight()) {
+                items(d.items, itemId = { it.id }) { item ->
+                    Column(GlanceModifier.fillMaxWidth()) {
+                        ItemRow(item)
+                        Spacer(GlanceModifier.height(ROW_GAP.dp))
+                    }
+                }
             }
         }
     }
@@ -246,12 +296,13 @@ private fun Large(d: WidgetData, heightDp: Float) {
 
 @Composable
 private fun ItemRow(it: WidgetItem) {
+    val iconSize = 30f
     Row(
-        GlanceModifier.fillMaxWidth().height(44.dp).background(ImageProvider(R.drawable.widget_row))
+        GlanceModifier.fillMaxWidth().height(ROW_H.dp).background(ImageProvider(R.drawable.widget_row))
             .padding(horizontal = 8.dp).clickable(openSub(androidx.glance.LocalContext.current, it.id)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Image(it.icon, it.name, GlanceModifier.size(30.dp).cornerRadius(9.dp), contentScale = ContentScale.Crop)
+        Image(it.icon, it.name, GlanceModifier.size(iconSize.dp).cornerRadius((iconSize * 0.3f).dp), contentScale = ContentScale.Crop)
         Spacer(GlanceModifier.width(10.dp))
         Column(GlanceModifier.defaultWeight()) {
             Text(it.name, style = TextStyle(color = White, fontSize = 13.sp, fontWeight = FontWeight.Medium), maxLines = 1)

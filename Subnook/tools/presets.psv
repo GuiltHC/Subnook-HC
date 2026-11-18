@@ -67,9 +67,9 @@ g_insurance|保险|LIFE|#E53935|1200|CNY|1|YEAR|MANUAL||||HealthAndSafety
 g_airport|机场 / 代理|VPN|#FB8C00|15|CNY|1|MONTH|MANUAL||||Flight
 pikpak|PikPak 会员|CLOUD|#306EFF|9.99|USD|1|MONTH|GOOGLE_PLAY|com.pikcloud.pikpak|PikPak|mypikpak.com|Cloud
 p115|115网盘会员|CLOUD|#2777F8|500|CNY|1|YEAR|ALIPAY|com.ylmf.androidclient||115.com|Cloud
-xunlei|迅雷超级会员|CLOUD|#1E86FF|30|CNY|1|MONTH|ALIPAY|com.xunlei.downloadprovider||xunlei.com|Storage
+xunlei|迅雷超级会员|CLOUD|#1E86FF|30|CNY|1|MONTH|ALIPAY|com.xunlei.downloadprovider|id:com.xunlei.mvideo|xunlei.com|Storage
 tianyi|天翼云盘会员|CLOUD|#1A73E8|10|CNY|1|MONTH|ALIPAY|com.cn21.ecloud|cn:天翼云盘|cloud.189.cn|Cloud
-mcloud|中国移动云盘会员|CLOUD|#00A0E9|10|CNY|1|MONTH|ALIPAY|com.chinamobile.mcloud||yun.139.com|Cloud
+mcloud|中国移动云盘会员|CLOUD|#00A0E9|10|CNY|1|MONTH|ALIPAY|com.chinamobile.mcloud|id:cn.10086.mobileClouds|yun.139.com|Cloud
 nutstore|坚果云|CLOUD|#3B8CEB|199|CNY|1|YEAR|ALIPAY|com.nutstore.android|Nutstore|jianguoyun.com|Cloud
 pan123|123云盘会员|CLOUD|#3B82F6|15|CNY|1|MONTH|ALIPAY||cn:123云盘|123pan.com|Cloud
 onedrive|OneDrive 100GB|CLOUD|#0078D4|1.99|USD|1|MONTH|CREDIT_CARD|com.microsoft.skydrive|OneDrive|onedrive.live.com|Cloud
@@ -93,8 +93,8 @@ tidal|TIDAL|MUSIC|#000000|10.99|USD|1|MONTH|CREDIT_CARD|com.aspiro.tidal|TIDAL|t
 deezer|Deezer Premium|MUSIC|#A238FF|11.99|USD|1|MONTH|CREDIT_CARD|deezer.android.app|Deezer|deezer.com|MusicNote
 amazonmusic|Amazon Music Unlimited|MUSIC|#25D1DA|10.99|USD|1|MONTH|CREDIT_CARD|com.amazon.mp3|Amazon Music|music.amazon.com|MusicNote
 soundcloud|SoundCloud Go+|MUSIC|#FF5500|10.99|USD|1|MONTH|GOOGLE_PLAY|com.soundcloud.android|SoundCloud|soundcloud.com|MusicNote
-kuwo|酷我音乐VIP|MUSIC|#FFB400|15|CNY|1|MONTH|WECHAT|cn.kuwo.player||kuwo.cn|MusicNote
-qishui|汽水音乐会员|MUSIC|#111111|10|CNY|1|MONTH|ALIPAY|com.luna.music||qishui.douyin.com|MusicNote
+kuwo|酷我音乐VIP|MUSIC|#FFB400|15|CNY|1|MONTH|WECHAT|cn.kuwo.player|id:com.yeelion.kwplayer|kuwo.cn|MusicNote
+qishui|汽水音乐会员|MUSIC|#111111|10|CNY|1|MONTH|ALIPAY|com.luna.music|id:com.soda.music|qishui.douyin.com|MusicNote
 qingting|蜻蜓FM会员|MUSIC|#FF4F4F|18|CNY|1|MONTH|ALIPAY|fm.qingting.qtradio|cn:蜻蜓FM|qingting.fm|Podcasts
 audible|Audible|MUSIC|#F7991C|14.95|USD|1|MONTH|CREDIT_CARD|com.audible.application|Audible|audible.com|Headphones
 poe|Poe|AI|#5D5CDE|19.99|USD|1|MONTH|GOOGLE_PLAY|com.poe.android|Poe|poe.com|AutoAwesome
@@ -136,12 +136,12 @@ aws|AWS|TOOLS|#FF9900|10|USD|1|MONTH|CREDIT_CARD|com.amazon.aws.console.mobile|A
 digitalocean|DigitalOcean|TOOLS|#0080FF|6|USD|1|MONTH|CREDIT_CARD|||digitalocean.com|Dns
 vultr|Vultr|TOOLS|#007BFC|5|USD|1|MONTH|CREDIT_CARD|||vultr.com|Dns
 vercel|Vercel Pro|TOOLS|#000000|20|USD|1|MONTH|CREDIT_CARD|||vercel.com|Dns
-namecheap|Namecheap|TOOLS|#DE3723|12|USD|1|YEAR|CREDIT_CARD|||namecheap.com|Language
+namecheap|Namecheap|TOOLS|#DE3723|12|USD|1|YEAR|CREDIT_CARD||id:com.namecheap.iosapp|namecheap.com|Language
 surfshark|Surfshark|VPN|#178A9E|15.45|USD|1|MONTH|CREDIT_CARD|com.surfshark.vpnclient.android|Surfshark|surfshark.com|VpnKey
 protonvpn|Proton VPN|VPN|#6D4AFF|9.99|USD|1|MONTH|CREDIT_CARD||us:Proton VPN|protonvpn.com|VpnKey
 mullvad|Mullvad VPN|VPN|#294D73|5|EUR|1|MONTH|CREDIT_CARD|net.mullvad.mullvadvpn|Mullvad VPN|mullvad.net|VpnKey
 warp|Cloudflare WARP+|VPN|#F38020|4.99|USD|1|MONTH|GOOGLE_PLAY|com.cloudflare.onedotonedotonedotone|Cloudflare One|cloudflare.com|VpnKey
-astrill|Astrill VPN|VPN|#E8412C|30|USD|1|MONTH|CREDIT_CARD|||astrill.com|VpnKey
+astrill|Astrill VPN|VPN|#E8412C|30|USD|1|MONTH|CREDIT_CARD||id:com.astrill.apple.iosapp|astrill.com|VpnKey
 linkedin|LinkedIn Premium|SOCIAL|#0A66C2|39.99|USD|1|MONTH|CREDIT_CARD|com.linkedin.android|LinkedIn|linkedin.com|Groups
 snapchat|Snapchat+|SOCIAL|#FFFC00|3.99|USD|1|MONTH|GOOGLE_PLAY|com.snapchat.android|Snapchat|snapchat.com|Chat
 reddit|Reddit Premium|SOCIAL|#FF4500|5.99|USD|1|MONTH|GOOGLE_PLAY|com.reddit.frontpage|Reddit|reddit.com|Chat
@@ -156,7 +156,20 @@ starrail|崩坏：星穹铁道·列车补给凭证|GAME|#2B2D42|30|CNY|1|MONTH|A
 zzz|绝区零·邦布会员|GAME|#F5E100|30|CNY|1|MONTH|ALIPAY|com.HoYoverse.Nap|Zenless Zone Zero|zzz.mihoyo.com|SportsEsports
 arknights|明日方舟·月卡|GAME|#2B2B2B|30|CNY|1|MONTH|ALIPAY|com.YoStarEN.Arknights|Arknights|ak.hypergryph.com|SportsEsports
 wuthering|鸣潮·月卡|GAME|#C8B88A|30|CNY|1|MONTH|ALIPAY|com.kurogame.wutheringwaves.global|Wuthering Waves|mc.kurogame.com|SportsEsports
-honorofkings|王者荣耀·战令|GAME|#E6B422|68|CNY|1|MONTH|WECHAT|||pvp.qq.com|SportsEsports
+honorofkings|王者荣耀·战令|GAME|#E6B422|68|CNY|1|MONTH|WECHAT||id:com.tencent.smoba|pvp.qq.com|SportsEsports
+azurlane|碧蓝航线·月卡|GAME|#2F6FD6|30|CNY|1|MONTH|ALIPAY||id:com.bilibili.azurlane|game.bilibili.com|SportsEsports
+honkai3|崩坏3·月卡|GAME|#3D7FE0|30|CNY|1|MONTH|ALIPAY||id:com.miHoYo.bh3|bh3.mihoyo.com|SportsEsports
+bluearchive|蔚蓝档案·月卡|GAME|#128AFA|30|CNY|1|MONTH|ALIPAY||id:com.RoamingStar.BlueArchive|bluearchive-cn.com|SportsEsports
+onmyoji|阴阳师·月卡|GAME|#8B1E1E|30|CNY|1|MONTH|ALIPAY||id:com.netease.onmyoji|yys.163.com|SportsEsports
+lysk|恋与深空·月卡|GAME|#3A2E5C|30|CNY|1|MONTH|ALIPAY||id:com.papegames.lysk|lysk.papegames.com|SportsEsports
+infinitynikki|无限暖暖·月卡|GAME|#F08DB5|30|CNY|1|MONTH|ALIPAY||id:com.papegames.infinitynikki|infinitynikki.com.cn|SportsEsports
+evol|恋与制作人·月卡|GAME|#E86A9A|30|CNY|1|MONTH|ALIPAY||id:com.papegames.evol|evol.papegames.com|SportsEsports
+reverse1999|重返未来：1999·月卡|GAME|#8C6A43|30|CNY|1|MONTH|ALIPAY||id:com.bluepoch.m.reverse1999|re1999.bluepoch.com|SportsEsports
+pgr|战双帕弥什·月卡|GAME|#C8102E|30|CNY|1|MONTH|ALIPAY||id:com.kurogame.haru.hero|zspms.com|SportsEsports
+snowbreak|尘白禁区·月卡|GAME|#4F7FAF|30|CNY|1|MONTH|ALIPAY||id:com.seasun.projectsnow.apple|snow.seasungames.com|SportsEsports
+gf2|少女前线2：追放·月卡|GAME|#2E2E2E|30|CNY|1|MONTH|ALIPAY||id:com.Sunborn.SnqxExilium|gf2.sunborngame.com|SportsEsports
+endfield|明日方舟：终末地·月卡|GAME|#E8C400|30|CNY|1|MONTH|ALIPAY||id:com.hypergryph.endfield|endfield.hypergryph.com|SportsEsports
+wuhua|物华弥新·月卡|GAME|#9C2F2F|30|CNY|1|MONTH|ALIPAY||id:com.bilibili.wuhuamixin|whmx.bilibili.com|SportsEsports
 eaplay|EA Play|GAME|#FF4747|4.99|USD|1|MONTH|CREDIT_CARD||||SportsEsports
 ubisoftplus|Ubisoft+|GAME|#0070FF|17.99|USD|1|MONTH|CREDIT_CARD||||SportsEsports
 geforcenow|GeForce NOW|GAME|#76B900|9.99|USD|1|MONTH|CREDIT_CARD|com.nvidia.geforcenow||nvidia.com|SportsEsports
@@ -176,8 +189,8 @@ economist|The Economist|NEWS|#E3120B|22.9|USD|1|MONTH|CREDIT_CARD|com.economist.
 wsj|华尔街日报 WSJ|NEWS|#111111|38.99|USD|1|MONTH|CREDIT_CARD|wsj.reader_sp|WSJ|wsj.com|Newspaper
 bloomberg|Bloomberg|NEWS|#000000|34.99|USD|1|MONTH|CREDIT_CARD|com.bloomberg.android.plus|Bloomberg|bloomberg.com|Newspaper
 ft|Financial Times|NEWS|#FCD0B1|39|USD|1|MONTH|CREDIT_CARD|com.ft.news|Financial Times|ft.com|Newspaper
-caixin|财新通|NEWS|#B5121B|498|CNY|1|YEAR|ALIPAY|||caixin.com|Newspaper
-wallstreetcn|华尔街见闻|NEWS|#2058B8|30|CNY|1|MONTH|WECHAT|com.wallstreetcn.news||wallstreetcn.com|Newspaper
+caixin|财新通|NEWS|#B5121B|498|CNY|1|YEAR|ALIPAY||id:com.caixinmedia.client|caixin.com|Newspaper
+wallstreetcn|华尔街见闻|NEWS|#2058B8|30|CNY|1|MONTH|WECHAT|com.wallstreetcn.news|id:finance.News|wallstreetcn.com|Newspaper
 headspace|Headspace|LIFE|#F47D31|12.99|USD|1|MONTH|GOOGLE_PLAY|com.getsomeheadspace.android|Headspace|headspace.com|SelfImprovement
 calm|Calm|LIFE|#4A90E2|69.99|USD|1|YEAR|GOOGLE_PLAY|com.calm.android|Calm|calm.com|SelfImprovement
 strava|Strava|LIFE|#FC4C02|11.99|USD|1|MONTH|GOOGLE_PLAY|com.strava|Strava|strava.com|FitnessCenter
@@ -198,30 +211,30 @@ walmartplus|Walmart+|SHOPPING|#0071DC|12.95|USD|1|MONTH|CREDIT_CARD|com.walmart.
 cbn|中国广电|TELECOM|#00A0E9|38|CNY|1|MONTH|ALIPAY||cn:中国广电|10099.com.cn|SimCard
 cmhk|中国移动香港 CMHK|TELECOM|#0085D0|98|HKD|1|MONTH|CREDIT_CARD||hk:My CMHK|hk.chinamobile.com|SimCard
 csl|csl.|TELECOM|#00A99D|128|HKD|1|MONTH|CREDIT_CARD||hk:My csl|hkcsl.com|SimCard
-hk3|3HK|TELECOM|#000000|98|HKD|1|MONTH|CREDIT_CARD|||three.com.hk|SimCard
+hk3|3HK|TELECOM|#000000|98|HKD|1|MONTH|CREDIT_CARD||id:hk.com.three.my3plus|three.com.hk|SimCard
 smartone|SmarTone|TELECOM|#E4002B|118|HKD|1|MONTH|CREDIT_CARD||||SimCard
 cht|中华电信|TELECOM|#0057B8|499|TWD|1|MONTH|CREDIT_CARD||tw:中華電信|cht.com.tw|SimCard
-twm|台湾大哥大|TELECOM|#FF6600|499|TWD|1|MONTH|CREDIT_CARD|||taiwanmobile.com|SimCard
+twm|台湾大哥大|TELECOM|#FF6600|499|TWD|1|MONTH|CREDIT_CARD||id:com.taiwanmobile.TTNTapp|taiwanmobile.com|SimCard
 fetnet|远传电信|TELECOM|#E60012|499|TWD|1|MONTH|CREDIT_CARD|||fetnet.net|SimCard
 tmobile|T-Mobile|TELECOM|#E20074|60|USD|1|MONTH|CREDIT_CARD|com.tmobile.pr.mytmobile|T-Mobile|t-mobile.com|SimCard
 verizon|Verizon|TELECOM|#000000|65|USD|1|MONTH|CREDIT_CARD|com.vzw.hss.myverizon|My Verizon|verizon.com|SimCard
 att|AT&T|TELECOM|#009FDB|65|USD|1|MONTH|CREDIT_CARD|com.att.myWireless|myAT&T|att.com|SimCard
 googlefi|Google Fi|TELECOM|#4285F4|35|USD|1|MONTH|GOOGLE_PLAY|com.google.android.apps.tycho|Google Fi|fi.google.com|SimCard
-mint|Mint Mobile|TELECOM|#6FC5A5|15|USD|1|MONTH|CREDIT_CARD|||mintmobile.com|SimCard
+mint|Mint Mobile|TELECOM|#6FC5A5|15|USD|1|MONTH|CREDIT_CARD||id:com.uvnv.mintsim|mintmobile.com|SimCard
 usmobile|US Mobile|TELECOM|#1D4ED8|20|USD|1|MONTH|CREDIT_CARD||us:US Mobile|usmobile.com|SimCard
 giffgaff|giffgaff|TELECOM|#000000|10|GBP|1|MONTH|CREDIT_CARD||gb:giffgaff|giffgaff.com|SimCard
 vodafone|Vodafone|TELECOM|#E60000|15|GBP|1|MONTH|CREDIT_CARD||gb:My Vodafone|vodafone.co.uk|SimCard
-ee|EE|TELECOM|#00B5B0|20|GBP|1|MONTH|CREDIT_CARD|||ee.co.uk|SimCard
+ee|EE|TELECOM|#00B5B0|20|GBP|1|MONTH|CREDIT_CARD||id:uk.co.ee.MyEE|ee.co.uk|SimCard
 threeuk|Three UK|TELECOM|#000000|12|GBP|1|MONTH|CREDIT_CARD||gb:Three UK|three.co.uk|SimCard
 docomo|NTT docomo|TELECOM|#CC0033|2970|JPY|1|MONTH|CREDIT_CARD||jp:My docomo|docomo.ne.jp|SimCard
-au|au (KDDI)|TELECOM|#EB5505|2970|JPY|1|MONTH|CREDIT_CARD|||au.com|SimCard
+au|au (KDDI)|TELECOM|#EB5505|2970|JPY|1|MONTH|CREDIT_CARD||id:com.kddi.ab.cmlab.auCSApp|au.com|SimCard
 softbank|SoftBank|TELECOM|#000000|2970|JPY|1|MONTH|CREDIT_CARD||jp:My SoftBank||SimCard
 rakuten|楽天モバイル 乐天移动|TELECOM|#BF0000|1078|JPY|1|MONTH|CREDIT_CARD||jp:my 楽天モバイル|network.mobile.rakuten.co.jp|SimCard
 ahamo|ahamo|TELECOM|#000000|2970|JPY|1|MONTH|CREDIT_CARD||jp:ahamo|ahamo.com|SimCard
 povo|povo|TELECOM|#000000|990|JPY|1|MONTH|CREDIT_CARD|||povo.jp|SimCard
 singtel|Singtel|TELECOM|#E60000|30|SGD|1|MONTH|CREDIT_CARD||sg:Singtel|singtel.com|SimCard
 skt|SK Telecom|TELECOM|#EA002C|55000|KRW|1|MONTH|CREDIT_CARD||kr:T world||SimCard
-airalo|Airalo eSIM|TELECOM|#FF4F5A|10|USD|1|MONTH|CREDIT_CARD|||airalo.com|SimCard
+airalo|Airalo eSIM|TELECOM|#FF4F5A|10|USD|1|MONTH|CREDIT_CARD||id:com.mobillium.airalo|airalo.com|SimCard
 ultra|Ultra Mobile 紫卡（PayGo）|TELECOM|#6B2C91|3|USD|1|MONTH|CREDIT_CARD||us:Ultra Mobile|ultramobile.com|SimCard
 tello|Tello|TELECOM|#1B4DFF|5|USD|1|MONTH|CREDIT_CARD||us:Tello Mobile|tello.com|SimCard
 redpocket|Red Pocket|TELECOM|#E31B23|10|USD|1|MONTH|CREDIT_CARD||us:Red Pocket Mobile|redpocket.com|SimCard

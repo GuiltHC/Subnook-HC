@@ -163,21 +163,56 @@ private class Form {
     }
 }
 
+/** 表单存进 Bundle（original 不存，恢复后从数据库重新读） */
+private val FormSaver = androidx.compose.runtime.saveable.listSaver<Form, Any?>(
+    save = { f ->
+        listOf(
+            f.name, f.iconType.name, f.iconValue, f.color, f.amount, f.currency, f.cycleCount, f.cycleUnit.name,
+            f.next.toEpochDay(), f.payMethod.name, f.autoRenew, f.category.name, f.remind, f.remindDays, f.active,
+            f.note, f.presetKey, f.loaded,
+        )
+    },
+    restore = { l ->
+        Form().apply {
+            name = l[0] as String; iconType = IconType.valueOf(l[1] as String); iconValue = l[2] as String
+            color = l[3] as Int; amount = l[4] as String; currency = l[5] as String; cycleCount = l[6] as String
+            cycleUnit = CycleUnit.valueOf(l[7] as String); next = LocalDate.ofEpochDay(l[8] as Long)
+            payMethod = PayMethod.valueOf(l[9] as String); autoRenew = l[10] as Boolean; category = Category.valueOf(l[11] as String)
+            remind = l[12] as Boolean; remindDays = l[13] as Int; active = l[14] as Boolean
+            note = l[15] as String; presetKey = l[16] as String?; loaded = l[17] as Boolean
+        }
+    },
+)
+
 @Composable
 fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Unit, prefillName: String = "") {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val form = remember { Form() }
+    // 表单状态可保存：去相册选图时 Activity 可能被系统回收重建，回来后填写的内容和选图结果都不能丢
+    val form = rememberSaveable(saver = FormSaver) { Form() }
     val st by vm.state.collectAsState()
     val extra = LocalExtra.current
     val cs = MaterialTheme.colorScheme
-    var iconSheet by remember { mutableStateOf(false) }
+    var iconSheet by rememberSaveable { mutableStateOf(false) }
+    var cropUri by rememberSaveable { mutableStateOf<android.net.Uri?>(null) }
+    val photo = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        if (uri != null) {
+            iconSheet = false
+            cropUri = uri
+        }
+    }
     var currencyDlg by remember { mutableStateOf(false) }
     var dateDlg by remember { mutableStateOf(false) }
     var deleteDlg by remember { mutableStateOf(false) }
     var showErrors by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(id, presetKey) {
-        if (form.loaded) return@LaunchedEffect
+        if (form.loaded) {
+            // 从保存的状态恢复：只补回原始记录，不覆盖用户已改的内容
+            if (id > 0 && form.original == null) form.original = vm.observeSub(id).first()
+            return@LaunchedEffect
+        }
         if (id > 0) {
             vm.observeSub(id).first()?.let(form::load)
         } else if (presetKey != null) {
@@ -192,7 +227,9 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
     val paymentsFlow = remember(id) { if (id > 0) vm.observePayments(id) else kotlinx.coroutines.flow.flowOf(emptyList()) }
     val payments by paymentsFlow.collectAsState(emptyList())
 
-    val save = {
+    val save = save@{
+        // 编辑已有订阅时，原始记录还没读出来就先不保存，免得被当成新订阅
+        if (id > 0 && form.original == null) return@save
         val s = form.build()
         if (s == null) {
             showErrors = true
@@ -426,6 +463,16 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
             onDismiss = { iconSheet = false },
             onPick = { t, v -> form.iconType = t; form.iconValue = v; iconSheet = false },
             onColor = { form.color = it },
+            onPickPhoto = {
+                photo.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+        )
+    }
+    cropUri?.let { uri ->
+        com.subnook.app.ui.components.ImageCropDialog(
+            uri,
+            onDismiss = { cropUri = null },
+            onDone = { name -> form.iconType = IconType.CUSTOM; form.iconValue = name; cropUri = null },
         )
     }
     if (currencyDlg) CurrencyPickerDialog(form.currency, { currencyDlg = false }) { form.currency = it; currencyDlg = false }

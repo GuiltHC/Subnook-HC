@@ -44,21 +44,69 @@ object IconFiles {
     fun presetRes(context: Context, key: String): Int =
         context.resources.getIdentifier("preset_$key", "drawable", context.packageName)
 
-    /** 把相册图片裁成正方形、缩放到 256px 后存入私有目录，返回文件名 */
-    fun importImage(context: Context, uri: Uri): String {
-        val src: Bitmap = if (Build.VERSION.SDK_INT >= 28) {
-            ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { d, _, _ ->
-                d.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-            }
-        } else {
-            context.contentResolver.openInputStream(uri)!!.use { BitmapFactory.decodeStream(it) }
+    /**
+     * 读取相册图片，长边缩到 [maxSide] 以内，统一转成 ARGB_8888（耗时，需在后台线程调用）。
+     * 部分系统相册「裁剪 / 编辑」后保存的图片 ImageDecoder 会报错（文件不完整、HDR/F16 格式等），
+     * 所以 ImageDecoder 失败后再用 BitmapFactory 兜底。
+     */
+    fun decode(context: Context, uri: Uri, maxSide: Int = 2048): Bitmap {
+        val cr = context.contentResolver
+        var error: Throwable? = null
+        if (Build.VERSION.SDK_INT >= 28) {
+            runCatching {
+                ImageDecoder.decodeBitmap(ImageDecoder.createSource(cr, uri)) { d, info, _ ->
+                    d.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                    d.setOnPartialImageListener { true } // 文件末尾不完整也尽量显示
+                    val w = info.size.width
+                    val h = info.size.height
+                    val long = maxOf(w, h)
+                    if (long > maxSide) d.setTargetSize((w.toLong() * maxSide / long).toInt().coerceAtLeast(1), (h.toLong() * maxSide / long).toInt().coerceAtLeast(1))
+                }
+            }.onSuccess { return it.toArgb() }.onFailure { error = it }
         }
-        val side = minOf(src.width, src.height)
-        val cropped = Bitmap.createBitmap(src, (src.width - side) / 2, (src.height - side) / 2, side, side)
+        // BitmapFactory：先读尺寸算采样率，再按 EXIF 方向旋转
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide) sample *= 2
+        val opts = BitmapFactory.Options().apply { inSampleSize = sample; inPreferredConfig = Bitmap.Config.ARGB_8888 }
+        val bmp = cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) }
+            ?: throw IllegalStateException("无法识别的图片格式", error)
+        val rotation = runCatching {
+            val o = cr.openInputStream(uri)?.use {
+                android.media.ExifInterface(it).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION, android.media.ExifInterface.ORIENTATION_NORMAL)
+            }
+            when (o) {
+                android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                else -> 0
+            }
+        }.getOrDefault(0)
+        if (rotation == 0) return bmp.toArgb()
+        val m = android.graphics.Matrix().apply { postRotate(rotation.toFloat()) }
+        return Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true).toArgb()
+    }
+
+    private fun Bitmap.toArgb(): Bitmap = if (config == Bitmap.Config.ARGB_8888) this else copy(Bitmap.Config.ARGB_8888, false)
+
+    /** 从 [src] 裁出正方形区域（[left],[top],[side] 为 src 像素坐标），缩放到 256px 存入私有目录，返回文件名 */
+    fun saveCropped(context: Context, src: Bitmap, left: Int, top: Int, side: Int): String {
+        val s = side.coerceIn(1, minOf(src.width, src.height))
+        val x = left.coerceIn(0, src.width - s)
+        val y = top.coerceIn(0, src.height - s)
+        val cropped = Bitmap.createBitmap(src, x, y, s, s)
         val scaled = Bitmap.createScaledBitmap(cropped, 256, 256, true)
         val name = "custom_${UUID.randomUUID()}.png"
-        file(context, name).outputStream().use { scaled.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        file(context, name).outputStream().use { check(scaled.compress(Bitmap.CompressFormat.PNG, 100, it)) { "图片保存失败" } }
         return name
+    }
+
+    /** 居中裁成正方形导入（不经过裁剪界面时用） */
+    fun importImage(context: Context, uri: Uri): String {
+        val src = decode(context, uri, maxSide = 1024)
+        val side = minOf(src.width, src.height)
+        return saveCropped(context, src, (src.width - side) / 2, (src.height - side) / 2, side)
     }
 }
 

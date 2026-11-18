@@ -1,9 +1,5 @@
 package com.subnook.app.ui.components
 
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -118,13 +114,12 @@ fun IconPickerSheet(
     onDismiss: () -> Unit,
     onPick: (IconType, String) -> Unit,
     onColor: (Int) -> Unit,
+    // 相册选图的启动器放在调用方（始终在组合里），避免底部弹窗被关掉 / Activity 重建后收不到选图结果
+    onPickPhoto: () -> Unit,
 ) {
     val context = LocalContext.current
     var tab by remember { mutableIntStateOf(0) }
     var q by remember { mutableStateOf("") }
-    val photo = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
-        if (uri != null) runCatching { IconFiles.importImage(context, uri) }.onSuccess { onPick(IconType.CUSTOM, it) }
-    }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
             PrimaryTabRow(selectedTabIndex = tab) {
@@ -176,12 +171,10 @@ fun IconPickerSheet(
                         TextButton(onClick = { onPick(IconType.TEXT, "") }) { Text("使用文字图标") }
                     }
                     Spacer(Modifier.height(20.dp))
-                    TextButton(onClick = {
-                        photo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    }) {
+                    TextButton(onClick = onPickPhoto) {
                         Icon(Icons.Rounded.PhotoLibrary, null)
                         Spacer(Modifier.width(8.dp))
-                        Text("从相册选择图片（自动裁剪为正方形）")
+                        Text("从相册选择图片（可裁剪）")
                     }
                     Spacer(Modifier.height(120.dp))
                 }
