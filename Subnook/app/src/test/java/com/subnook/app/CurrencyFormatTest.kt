@@ -24,8 +24,8 @@ class CurrencyFormatTest {
         assertEquals("¥0", Currencies.format(0.0, "CNY"))
     }
 
-    @Test fun forintSuffix() {
-        assertEquals("2,990 Ft", Currencies.format(2990.0, "HUF"))
-        assertEquals("2,990 Ft", Currencies.formatList(2990.4, "HUF"))
+    @Test fun forintLikeOtherLetterSymbols() {
+        assertEquals("Ft 2,990", Currencies.format(2990.0, "HUF"))
+        assertEquals("Ft 2,990", Currencies.formatList(2990.4, "HUF"))
     }
 }

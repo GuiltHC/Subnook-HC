@@ -44,9 +44,6 @@ object Currencies {
     /** 0 位小数的币种 */
     private val noDecimals = setOf("JPY", "KRW", "VND", "IDR", "HUF")
 
-    /** 符号写在数字后面的币种，例如 "2,990 Ft" */
-    private val suffixSymbol = setOf("HUF")
-
     fun format(amount: Double, code: String): String = formatWith(symbol(code), amount, code)
 
     private fun formatWith(symbol: String, amount: Double, code: String): String {
@@ -55,8 +52,7 @@ object Currencies {
         val whole = cents % 100 == 0L
         val digits = if (code in noDecimals || whole) 0 else 2
         val sym = symbol.trim()
-        if (code in suffixSymbol) return "%,.${digits}f".format(amount) + " " + sym
-        // 以字母结尾的符号（CHF、RM、Rp）和数字之间留个空格
+        // 以字母结尾的符号（CHF、RM、Rp、Ft）和数字之间留个空格
         val sep = if (sym.lastOrNull()?.isLetter() == true) " " else ""
         return sym + sep + "%,.${digits}f".format(amount)
     }
