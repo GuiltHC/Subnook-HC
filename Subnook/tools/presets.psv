@@ -258,3 +258,28 @@ gomo|GOMO|TELECOM|#FF4D00|10|SGD|1|MONTH|CREDIT_CARD||sg:GOMO Singapore|gomo.sg|
 circles|Circles.Life|TELECOM|#E52E2E|20|SGD|1|MONTH|CREDIT_CARD||sg:Circles.Life|circles.life|SimCard
 holafly|Holafly eSIM|TELECOM|#FF3B6B|19|USD|1|MONTH|CREDIT_CARD||us:Holafly|holafly.com|SimCard
 nomad|Nomad eSIM|TELECOM|#000000|10|USD|1|MONTH|CREDIT_CARD||us:Nomad eSIM|getnomad.app|SimCard
+# ---- Российские сервисы (форк Subnook-HC). Цены не указаны (0): у сервисов много тарифов и цены часто меняются ----
+ru_yandexplus|Яндекс Плюс|VIDEO|#FC3F1D|0|RUB|1|MONTH|BANK_CARD|||plus.yandex.ru|Star
+ru_kinopoisk|Кинопоиск|VIDEO|#FF6600|0|RUB|1|MONTH|BANK_CARD|||kinopoisk.ru|Movie
+ru_okko|Okko|VIDEO|#5B2EE5|0|RUB|1|MONTH|BANK_CARD|||okko.tv|Movie
+ru_ivi|Иви|VIDEO|#EA003D|0|RUB|1|MONTH|BANK_CARD|||ivi.ru|Movie
+ru_wink|Wink|VIDEO|#FF5A00|0|RUB|1|MONTH|BANK_CARD|||wink.ru|Tv
+ru_kion|KION|VIDEO|#E30611|0|RUB|1|MONTH|BANK_CARD|||kion.ru|Tv
+ru_start|START|VIDEO|#1A1A1A|0|RUB|1|MONTH|BANK_CARD|||start.ru|Movie
+ru_premier|PREMIER|VIDEO|#F5C400|0|RUB|1|MONTH|BANK_CARD|||premier.one|Movie
+ru_amediateka|Амедиатека|VIDEO|#202020|0|RUB|1|MONTH|BANK_CARD|||amediateka.ru|LiveTv
+ru_vkmusic|VK Музыка|MUSIC|#0077FF|0|RUB|1|MONTH|BANK_CARD|||vk.com|MusicNote
+ru_zvuk|Звук|MUSIC|#5A2DFF|0|RUB|1|MONTH|BANK_CARD|||zvuk.com|MusicNote
+ru_yandex360|Яндекс 360|CLOUD|#FC3F1D|0|RUB|1|MONTH|BANK_CARD|||360.yandex.ru|Cloud
+ru_mailcloud|Облако Mail|CLOUD|#005FF9|0|RUB|1|MONTH|BANK_CARD|||cloud.mail.ru|Cloud
+ru_litres|Литрес|EDU|#FF4C00|0|RUB|1|MONTH|BANK_CARD|||litres.ru|MenuBook
+ru_sberprime|СберПрайм|SHOPPING|#21A038|0|RUB|1|MONTH|BANK_CARD|||sberprime.sber.ru|ShoppingBag
+ru_ozonpremium|Ozon Premium|SHOPPING|#005BFF|0|RUB|1|MONTH|BANK_CARD|||ozon.ru|ShoppingCart
+ru_tbankpro|Т-Банк Pro|LIFE|#FFDD2D|0|RUB|1|MONTH|BANK_CARD|||tbank.ru|CreditCard
+ru_mtspremium|МТС Premium|LIFE|#E30611|0|RUB|1|MONTH|BANK_CARD|||mts.ru|Star
+ru_mts|МТС|TELECOM|#E30611|0|RUB|1|MONTH|BANK_CARD|||mts.ru|SimCard
+ru_beeline|Билайн|TELECOM|#FFC800|0|RUB|1|MONTH|BANK_CARD|||beeline.ru|SimCard
+ru_megafon|МегаФон|TELECOM|#00B956|0|RUB|1|MONTH|BANK_CARD|||megafon.ru|SimCard
+ru_t2|T2|TELECOM|#1F2229|0|RUB|1|MONTH|BANK_CARD|||t2.ru|SimCard
+ru_yota|Yota|TELECOM|#00AEEF|0|RUB|1|MONTH|BANK_CARD|||yota.ru|SimCard
+ru_rostelecom|Ростелеком|TELECOM|#7700FF|0|RUB|1|MONTH|BANK_CARD|||rt.ru|Router

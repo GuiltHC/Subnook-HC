@@ -55,7 +55,7 @@ enum class ThemeMode(@StringRes val labelRes: Int) {
 
 @Serializable
 data class AppSettings(
-    val displayCurrency: String = "CNY",
+    val displayCurrency: String = "RUB",
     val notifyHour: Int = 9,
     val notifyMinute: Int = 0,
     val period: SummaryPeriod = SummaryPeriod.MONTH,
@@ -89,7 +89,7 @@ class SettingsRepository(private val context: Context) {
 
     val flow: Flow<AppSettings> = context.dataStore.data.map { p ->
         AppSettings(
-            displayCurrency = p[K.currency] ?: "CNY",
+            displayCurrency = p[K.currency] ?: "RUB",
             notifyHour = p[K.hour] ?: 9,
             notifyMinute = p[K.minute] ?: 0,
             period = p[K.period]?.let { runCatching { SummaryPeriod.valueOf(it) }.getOrNull() } ?: SummaryPeriod.MONTH,

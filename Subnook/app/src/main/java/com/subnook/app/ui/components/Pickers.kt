@@ -134,7 +134,7 @@ fun IconPickerSheet(
                 0 -> {
                     OutlinedTextField(q, { q = it }, label = { Text(str(R.string.picker_search_brand)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
-                    val list = PresetCatalog.all.filter {
+                    val list = com.subnook.app.data.PresetNames.visible().filter {
                         IconFiles.presetRes(context, it.key) != 0 && (q.isBlank() || it.name.contains(q, true) || it.rawName.contains(q, true) || it.key.contains(q, true))
                     }
                     LazyVerticalGrid(GridCells.Adaptive(68.dp), Modifier.height(420.dp)) {

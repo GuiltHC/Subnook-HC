@@ -111,11 +111,11 @@ internal class Form {
     var iconValue by mutableStateOf("")
     var color by mutableStateOf(PaletteColors[12])
     var amount by mutableStateOf("")
-    var currency by mutableStateOf("CNY")
+    var currency by mutableStateOf("RUB")
     var cycleCount by mutableStateOf("1")
     var cycleUnit by mutableStateOf(CycleUnit.MONTH)
     var next by mutableStateOf(LocalDate.now().plusMonths(1))
-    var payMethod by mutableStateOf(PayMethod.ALIPAY)
+    var payMethod by mutableStateOf(PayMethod.BANK_CARD)
     var autoRenew by mutableStateOf(true)
     var category by mutableStateOf(Category.OTHER)
     var remind by mutableStateOf(true)
@@ -210,8 +210,14 @@ internal class Form {
         iconType = if (hasImage) IconType.PRESET else IconType.MATERIAL
         iconValue = if (hasImage) p.key else p.material
         color = p.color
-        amount = p.price.toBigDecimal().stripTrailingZeros().toPlainString()
-        currency = p.currency
+        // Цены нет (0) или она в юанях при некитайском интерфейсе: сумму не подставляем, пусть введут сами
+        if (com.subnook.app.data.PresetNames.usePresetPrice(p)) {
+            amount = p.price.toBigDecimal().stripTrailingZeros().toPlainString()
+            currency = p.currency
+        } else {
+            amount = ""
+            if (p.currency != "CNY") currency = p.currency
+        }
         cycleCount = p.cycleCount.toString(); cycleUnit = p.cycleUnit
         next = Billing.shift(LocalDate.now(), p.cycleCount, p.cycleUnit, LocalDate.now().dayOfMonth)
         // 预设里的「手动付款」（房租、保险等）：付款方式记成「其他」，关掉自动续费就是手动

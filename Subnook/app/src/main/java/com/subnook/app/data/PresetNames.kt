@@ -124,6 +124,41 @@ object PresetNames {
         "cuniq" to "China Unicom Hong Kong (CUniq)",
     )
 
+    /**
+     * Пресеты с китайскими названиями, которые нужны не только в Китае (игры и международные сервисы):
+     * их показываем и в русском интерфейсе. Остальные китайские пресеты — только в китайском.
+     */
+    private val global: Set<String> = setOf(
+        "genshin", "starrail", "zzz", "arknights", "wuthering", "honorofkings", "azurlane", "honkai3",
+        "bluearchive", "onmyoji", "lysk", "infinitynikki", "evol", "reverse1999", "pgr", "snowbreak", "gf2", "endfield",
+        "medium", "wsj", "costco", "camscanner", "rakuten", "ultra",
+    )
+
+    private fun isCjk(c: Char) = c in '\u4e00'..'\u9fff' || c in '\u3400'..'\u4dbf'
+
+    /** Пресет только для китайского интерфейса (китайские сервисы). Общие пресеты g_* показываются всем. */
+    fun isChinaOnly(p: Preset): Boolean = !p.key.startsWith("g_") && p.key !in global && p.rawName.any(::isCjk)
+
+    /** Российские сервисы (ключи ru_*): для всех интерфейсов, кроме китайского. */
+    fun isRussian(p: Preset): Boolean = p.key.startsWith("ru_")
+
+    /**
+     * Пресеты, которые показываются в списке выбора для текущего языка интерфейса.
+     * Уже добавленные подписки с любыми пресетами работают как раньше: поиск по ключу идёт по [PresetCatalog.all].
+     * В русском интерфейсе российские сервисы идут первыми в своих разделах.
+     */
+    fun visible(): List<Preset> {
+        val zh = uiLocale().language == "zh"
+        val list = PresetCatalog.all.filter { if (zh) !isRussian(it) else !isChinaOnly(it) }
+        return if (zh) list else list.sortedBy { if (isRussian(it)) 0 else 1 }
+    }
+
+    /**
+     * В некитайском интерфейсе цену в юанях из оригинального каталога не подставляем
+     * (сумму пользователь введёт сам, валюта остаётся выбранной по умолчанию).
+     */
+    fun usePresetPrice(p: Preset): Boolean = p.price > 0 && (p.currency != "CNY" || uiLocale().language == "zh")
+
     /** Название пресета на языке интерфейса; null — показывать оригинальное. */
     fun localized(key: String): String? = if (uiLocale().language == "ru") ru[key] else null
 

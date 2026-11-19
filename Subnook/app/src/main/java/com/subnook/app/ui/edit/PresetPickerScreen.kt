@@ -58,7 +58,8 @@ import com.subnook.app.ui.components.SubIcon
 @Composable
 fun PresetPickerScreen(onBack: () -> Unit, onPick: (key: String?, query: String) -> Unit) {
     var q by remember { mutableStateOf("") }
-    val filtered = PresetCatalog.all.filter { q.isBlank() || it.name.contains(q, true) || it.rawName.contains(q, true) || it.key.contains(q, true) }
+    val all = remember { com.subnook.app.data.PresetNames.visible() }
+    val filtered = all.filter { q.isBlank() || it.name.contains(q, true) || it.rawName.contains(q, true) || it.key.contains(q, true) }
     val grouped = Category.entries.mapNotNull { c -> filtered.filter { it.category == c }.takeIf { it.isNotEmpty() }?.let { c to it } }
 
     // 每个分区标题在网格里的位置：第 0 项是「自定义订阅」卡片，之后每个分区 = 1 个标题 + N 个图标
