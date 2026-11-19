@@ -6,7 +6,9 @@
 > Названия пресетов с китайскими названиями показываются на русском или латиницей (`data/PresetNames.kt`).
 > Валюта по умолчанию — рубль. Добавлены российские сервисы (Яндекс Плюс, Кинопоиск, Okko, Иви, VK Музыка, Литрес, СберПрайм, Т-Банк Pro, операторы связи и др.)
 > без цен: сумму вводите сами. Китайские сервисы показываются только в китайском интерфейсе.
-> Debug APK собирается в GitHub Actions: вкладка Actions → последний запуск → артефакт `Subnook-HC-debug-apk`.
+> APK собирается в GitHub Actions: вкладка Actions → последний запуск → артефакт `Subnook-HC-debug-apk`
+> или `Subnook-HC-release-apk` (подписанный release; появляется, когда в Settings → Secrets and variables → Actions
+> заданы секреты `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`).
 > Лицензия и Required Notice оригинала не изменены (PolyForm Noncommercial 1.0.0, Copyright (c) 2026 capllen).
 
 

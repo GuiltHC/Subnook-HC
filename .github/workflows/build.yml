@@ -1,4 +1,4 @@
-name: Сборка debug APK
+name: Сборка APK
 
 on:
   push:
@@ -6,7 +6,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  debug:
+    name: Debug APK
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -33,3 +34,55 @@ jobs:
 
       - name: Юнит-тесты
         run: ./gradlew testDebugUnitTest
+
+  release:
+    name: Release APK (подписанный)
+    runs-on: ubuntu-latest
+    # Секреты не передаются в запуски из чужих форков (pull_request), поэтому release там не собираем
+    if: github.event_name != 'pull_request'
+    defaults:
+      run:
+        working-directory: Subnook
+    env:
+      HAS_KEY: ${{ secrets.KEYSTORE_BASE64 != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_ALIAS != '' && secrets.KEY_PASSWORD != '' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Ключ подписи из секретов
+        if: env.HAS_KEY == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/signing"
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/signing/release.jks"
+          echo "SIGNING_STORE_FILE=$RUNNER_TEMP/signing/release.jks" >> "$GITHUB_ENV"
+
+      - name: Секретов нет
+        if: env.HAS_KEY != 'true'
+        run: echo "::warning title=Release APK не подписан::Не заданы секреты KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD. Release собирается только для проверки и не выкладывается."
+
+      - name: Сборка release APK (R8)
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Release APK как артефакт
+        if: env.HAS_KEY == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Subnook-HC-release-apk
+          path: Subnook/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - name: Удалить ключ с раннера
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/signing"

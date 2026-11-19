@@ -25,7 +25,16 @@ android {
         // release 签名信息放在 Subnook/keystore.properties（不提交到 git），格式见 keystore.properties.example
         // 没有这个文件时，release 包退回用 debug 签名，方便别人直接编译
         val propsFile = rootProject.file("keystore.properties")
-        if (propsFile.exists()) {
+        // CI (GitHub Actions): ключ из секретов репозитория передаётся через переменные окружения
+        val envStore = System.getenv("SIGNING_STORE_FILE")?.takeIf { it.isNotBlank() }?.let { file(it) }
+        if (envStore != null && envStore.exists()) {
+            create("release") {
+                storeFile = envStore
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+            }
+        } else if (propsFile.exists()) {
             val props = Properties().apply { propsFile.inputStream().use { load(it) } }
             val ks = rootProject.file(props.getProperty("storeFile", "keystore/release.jks"))
             if (ks.exists()) {
