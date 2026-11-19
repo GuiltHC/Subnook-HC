@@ -4,13 +4,13 @@ Subnook 是一个简洁的 Android 订阅和分期管理 App：记录各种会�
 
 <p>
   <img src="docs/screenshots/home.png" width="200" alt="首页月均支出与待付款订阅">
-  <img src="docs/screenshots/installment-plan.png" width="200" alt="分期还款计划与每期本金、手续费明细">
+  <img src="docs/screenshots/stats.png" width="200" alt="月均支出与分类占比">
   <img src="docs/screenshots/balance.png" width="200" alt="余额可付期数、下次充值日期与充值记录">
 </p>
 
 <p>
   <img src="docs/screenshots/list.png" width="200" alt="多币种订阅列表">
-  <img src="docs/screenshots/stats.png" width="200" alt="月均支出与分类占比">
+  <img src="docs/screenshots/installment-plan.png" width="200" alt="分期还款计划与每期本金、手续费明细">
   <img src="docs/screenshots/calendar.png" width="200" alt="账单日历与所选日期的 HBO Max 账单">
 </p>
 
@@ -23,15 +23,11 @@ Subnook 是一个简洁的 Android 订阅和分期管理 App：记录各种会�
 - **提醒**：默认账单日前 3 天开始每天提醒一次（提前天数 0–30 天可调），手动付款逾期每天提醒，通知上可直接点「已付款」
 - **排序**：按下次付款日期、月均金额、名称、分类、添加时间排序，可选正序 / 倒序；也可以长按卡片拖动手动排序
 - **统计**：首页按周 / 月 / 年显示平均支出（订阅和分期合计）；详细统计页有分类环形图、花费排行、未来 12 个月待付、订阅 / 分期占比、按付款方式 / 币种分布、已付款记录
-- **多币种**：31 种常用货币（含匈牙利福林），显示币种可切换，汇率每 24 小时自动更新（[open.er-api.com](https://open.er-api.com)）
+- **多币种**：31 种常用货币，显示币种可切换，汇率每 24 小时自动更新（[open.er-api.com](https://open.er-api.com)）
 - **账单日历**：每天显示当天扣款的订阅图标，过去显示实际付款记录
 - **250+ 预设**：国内外常用软件、游戏、云服务、VPN、通信运营商等，自带图标和参考价格；也可以从相册选图（可裁剪）或用内置设计图标
-- **桌面小组件**：不用打开 App 就能看到每月支出和即将扣款的订阅 / 分期，列表可上下滑动
 - **备份**：导出 / 导入 JSON（含付款记录、充值记录、自定义图标和设置）；也可以备份到 WebDAV（坚果云、Nextcloud、群晖等），支持每天自动备份。只有设置了 WebDAV 才会联网上传，账号密码只保存在本机
-- 浅色 / 深色主题
-- 设置 → 关于里可以手动检查更新（不会自动联网检查）
-- 旧版本导出的备份可以直接导入
-
+- **桌面小组件**：不用打开 App 就能看到每月支出和即将扣款的订阅 / 分期，列表可上下滑动
 <p>
   <img src="docs/screenshots/widget.png" width="300" alt="桌面小组件（4×2）">
   <img src="docs/screenshots/widget-large.png" width="234" alt="桌面小组件（4×4，列表可滑动）">
