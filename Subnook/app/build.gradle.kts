@@ -17,8 +17,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // 发版时：versionCode +1；versionName 按「主版本.功能.修复」递增，并在仓库根目录 CHANGELOG.md 记录
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 24
+        versionName = "1.3.0"
     }
 
     signingConfigs {
@@ -100,6 +100,9 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.10.5")
     implementation("androidx.glance:glance-appwidget:1.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    // WebDAV 云端备份（PROPFIND / MKCOL 这类方法 HttpURLConnection 不支持）
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }

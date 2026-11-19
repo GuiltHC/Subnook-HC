@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.Dispatchers
@@ -114,12 +115,7 @@ fun ImageCropDialog(uri: Uri, onDismiss: () -> Unit, onDone: (String) -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth().padding(20.dp)) {
             Column(Modifier.padding(20.dp)) {
-                Text("裁剪图标", style = MaterialTheme.typography.titleLarge)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "拖动或双指缩放选择要显示的区域，双击还原",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Text("裁剪图标", style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp))
                 Spacer(Modifier.height(14.dp))
                 Box(
                     Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(Color(0xFF111111))

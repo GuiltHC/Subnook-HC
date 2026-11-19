@@ -41,6 +41,10 @@ data class AppSettings(
     /** null = 用该排序的默认方向（旧版本没有这个设置） */
     val sortAsc: Boolean? = null,
     val theme: ThemeMode = ThemeMode.SYSTEM,
+    /** 用户自己加的分类（选「其他」时填的名称，确认后加入），订阅里存成 OTHER + categoryNote */
+    val customCategories: List<String> = emptyList(),
+    /** 用户自己加的付款方式（选「其他」时填的名称，确认后加入），订阅里存成 OTHER + payMethodNote */
+    val customPayMethods: List<String> = emptyList(),
 ) {
     val sortAscending: Boolean get() = sortAsc ?: sort.defaultAsc
 }
@@ -56,6 +60,9 @@ class SettingsRepository(private val context: Context) {
         val sort = stringPreferencesKey("sort")
         val sortAsc = booleanPreferencesKey("sort_asc")
         val theme = stringPreferencesKey("theme")
+        /** 用户自己加的分类，一行一个 */
+        val customCategories = stringPreferencesKey("custom_categories")
+        val customPayMethods = stringPreferencesKey("custom_pay_methods")
     }
 
     val flow: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -67,10 +74,33 @@ class SettingsRepository(private val context: Context) {
             sort = p[K.sort]?.let { runCatching { SortOrder.valueOf(it) }.getOrNull() } ?: SortOrder.NEXT_DATE,
             sortAsc = p[K.sortAsc],
             theme = p[K.theme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
+            customCategories = parseCategories(p[K.customCategories]),
+            customPayMethods = parseCategories(p[K.customPayMethods]),
         )
     }
 
     suspend fun setTheme(t: ThemeMode) = context.dataStore.edit { it[K.theme] = t.name }
+
+    /** 自定义分类：加在最后，重名不重复加 */
+    suspend fun addCustomCategory(name: String) = context.dataStore.edit {
+        val list = parseCategories(it[K.customCategories])
+        val n = cleanCategory(name)
+        if (n.isNotEmpty() && n !in list) it[K.customCategories] = (list + n).joinToString(SEP)
+    }
+
+    suspend fun removeCustomCategory(name: String) = context.dataStore.edit {
+        it[K.customCategories] = (parseCategories(it[K.customCategories]) - name).joinToString(SEP)
+    }
+
+    suspend fun addCustomPayMethod(name: String) = context.dataStore.edit {
+        val list = parseCategories(it[K.customPayMethods])
+        val n = cleanCategory(name)
+        if (n.isNotEmpty() && n !in list) it[K.customPayMethods] = (list + n).joinToString(SEP)
+    }
+
+    suspend fun removeCustomPayMethod(name: String) = context.dataStore.edit {
+        it[K.customPayMethods] = (parseCategories(it[K.customPayMethods]) - name).joinToString(SEP)
+    }
 
     suspend fun get(): AppSettings = flow.first()
 
@@ -87,5 +117,15 @@ class SettingsRepository(private val context: Context) {
         it[K.sort] = s.sort.name
         s.sortAsc?.let { v -> it[K.sortAsc] = v } ?: it.remove(K.sortAsc)
         it[K.theme] = s.theme.name
+        it[K.customCategories] = s.customCategories.joinToString(SEP)
+        it[K.customPayMethods] = s.customPayMethods.joinToString(SEP)
     }
 }
+
+private fun parseCategories(raw: String?): List<String> =
+    raw.orEmpty().split('\n').map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+
+/** 分类名：去掉换行和首尾空格，最多 20 个字 */
+fun cleanCategory(name: String): String = name.replace('\n', ' ').trim().take(20)
+
+private const val SEP = "\n"

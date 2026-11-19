@@ -147,10 +147,7 @@ fun PresetPickerScreen(onBack: () -> Unit, onPick: (key: String?, query: String)
                             contentAlignment = Alignment.Center,
                         ) { Icon(Icons.Rounded.Add, null, Modifier.size(26.dp), tint = androidx.compose.ui.graphics.Color.White) }
                         Spacer(Modifier.size(14.dp))
-                        Column {
-                            Text(if (q.isBlank()) "自定义订阅" else "自定义「$q」", style = MaterialTheme.typography.titleMedium, color = androidx.compose.ui.graphics.Color.White)
-                            Text("不在列表里？手动填写名称、图标等信息", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.75f))
-                        }
+                        Text(if (q.isBlank()) "自定义订阅" else "自定义「$q」", style = MaterialTheme.typography.titleMedium, color = androidx.compose.ui.graphics.Color.White)
                     }
                 }
                 grouped.forEach { (cat, list) ->

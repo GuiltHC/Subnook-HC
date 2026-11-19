@@ -25,6 +25,8 @@ class App : Application() {
     val notifier by lazy { Notifier(this) }
     val processor by lazy { RenewalProcessor(dao, settings, notifier) }
     val backup by lazy { BackupManager(this) }
+    val webDav by lazy { com.subnook.app.data.WebDavSettingsRepository(this) }
+    val cloud by lazy { com.subnook.app.data.CloudBackup(this) }
 
     override fun onCreate() {
         super.onCreate()
@@ -33,6 +35,10 @@ class App : Application() {
         appScope.launch {
             Scheduler.runAll(this@App)
             rates.refreshIfStale()
+        }
+        // 自动云端备份（用户开启后才有）：确保周期任务还在
+        appScope.launch {
+            if (webDav.get().let { it.autoBackup && it.configured }) com.subnook.app.data.CloudBackup.schedule(this@App, true)
         }
         // 订阅 / 设置 / 汇率任何变化都同步到桌面小组件
         appScope.launch {

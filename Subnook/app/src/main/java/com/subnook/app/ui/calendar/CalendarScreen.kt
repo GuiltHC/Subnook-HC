@@ -93,7 +93,7 @@ fun CalendarScreen(vm: MainViewModel, onOpen: (Long) -> Unit) {
             // 今天及以后：预测账单
             val from = maxOf(first, today)
             if (from <= last) Billing.upcoming(s, from, last).forEach { d ->
-                list += Event(s, d, s.amount, s.currency, Kind.UPCOMING)
+                list += Event(s, d, Billing.amountOn(s, d), s.currency, Kind.UPCOMING)
             }
         }
         list.groupBy { it.date }
@@ -177,7 +177,7 @@ fun CalendarScreen(vm: MainViewModel, onOpen: (Long) -> Unit) {
                         when (e.kind) {
                             Kind.PAID -> Pill("已付款", extra.success)
                             Kind.OVERDUE -> Pill("逾期未确认", extra.danger)
-                            Kind.UPCOMING -> Pill(if (e.sub.autoRenew) "${e.sub.payMethod.label} 自动扣款" else "${e.sub.payMethod.label} 手动付款", MaterialTheme.colorScheme.primary)
+                            Kind.UPCOMING -> Pill(if (e.sub.autoRenew) "${e.sub.payMethodLabel} 自动扣款" else "${e.sub.payMethodLabel} 手动付款", MaterialTheme.colorScheme.primary)
                         }
                     }
                     Text(Currencies.formatList(e.amount, e.currency), style = MaterialTheme.typography.titleSmall.merge(TabularNums), fontWeight = FontWeight.Bold)

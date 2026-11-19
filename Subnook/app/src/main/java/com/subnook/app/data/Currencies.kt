@@ -44,6 +44,9 @@ object Currencies {
     /** 0 位小数的币种 */
     private val noDecimals = setOf("JPY", "KRW", "VND", "IDR", "HUF")
 
+    /** 金额的小数位数（分期计算按这个精度四舍五入） */
+    fun decimals(code: String): Int = if (code in noDecimals) 0 else 2
+
     fun format(amount: Double, code: String): String = formatWith(symbol(code), amount, code)
 
     private fun formatWith(symbol: String, amount: Double, code: String): String {

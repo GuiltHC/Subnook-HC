@@ -1,5 +1,6 @@
 package com.subnook.app.ui.edit
 
+import com.subnook.app.ui.components.AppAlertDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -84,6 +85,9 @@ import com.subnook.app.data.IconType
 import com.subnook.app.data.PayMethod
 import com.subnook.app.data.PresetCatalog
 import com.subnook.app.data.Subscription
+import com.subnook.app.data.SubKind
+import com.subnook.app.data.InstallmentMethod
+import com.subnook.app.domain.Installments
 import com.subnook.app.domain.Billing
 import com.subnook.app.ui.MainViewModel
 import com.subnook.app.ui.components.CurrencyPickerDialog
@@ -97,7 +101,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.flow.first
 
-private class Form {
+internal class Form {
     var name by mutableStateOf("")
     var iconType by mutableStateOf(IconType.TEXT)
     var iconValue by mutableStateOf("")
@@ -115,17 +119,85 @@ private class Form {
     var active by mutableStateOf(true)
     var note by mutableStateOf("")
     var presetKey by mutableStateOf<String?>(null)
+    /** 选「其他」时填的名称（可以不填） */
+    var payMethodNote by mutableStateOf("")
+    var categoryNote by mutableStateOf("")
     var original by mutableStateOf<Subscription?>(null)
     var loaded by mutableStateOf(false)
+
+    // ---- 分期 ----
+    var kind by mutableStateOf(SubKind.SUBSCRIPTION)
+    var instPrincipal by mutableStateOf("")
+    var instTerms by mutableStateOf("12")
+    var instRate by mutableStateOf("")
+    var instMethod by mutableStateOf(InstallmentMethod.INTEREST_FREE)
+    var instFirst by mutableStateOf("")
+    /** 下次还款是第几期 */
+    var instCurrent by mutableStateOf("1")
+    val isInstallment get() = kind == SubKind.INSTALLMENT
+
+    // ---- 余额付款 ----
+    var balance by mutableStateOf("")
+    /** 用户改过余额输入框；没改过时保存用数据库里最新的余额（后台可能已经扣过款） */
+    var balanceTouched by mutableStateOf(false)
+    fun balanceValue(): Double? = if (balance.isBlank()) 0.0 else balance.num()?.takeIf { it >= 0 }
+    /** 充值 / 删除记录后，同步输入框里显示的余额（不算用户改动） */
+    fun adjustBalance(delta: Double) {
+        val v = ((balanceValue() ?: original?.balance ?: 0.0) + delta).coerceAtLeast(0.0)
+        balance = com.subnook.app.data.roundMoney(v).plain()
+    }
+
+    fun startInstallment(displayCurrency: String) {
+        kind = SubKind.INSTALLMENT
+        category = Category.OTHER
+        payMethod = PayMethod.CREDIT_CARD; autoRenew = true
+        iconType = IconType.MATERIAL; iconValue = "CreditCard"
+        color = PaletteColors.random()
+        currency = displayCurrency
+    }
 
     fun load(s: Subscription) {
         original = s
         name = s.name; iconType = s.iconType; iconValue = s.iconValue; color = s.color
-        amount = s.amount.toBigDecimal().stripTrailingZeros().toPlainString(); currency = s.currency
+        amount = s.amount.plain(); currency = s.currency
         cycleCount = s.cycleCount.toString(); cycleUnit = s.cycleUnit; next = LocalDate.ofEpochDay(s.nextBillingDay)
         payMethod = s.payMethod; autoRenew = s.autoRenew; category = s.category
         remind = s.remindEnabled; remindDays = s.remindDaysBefore; active = s.active; note = s.note; presetKey = s.presetKey
+        payMethodNote = s.payMethodNote; categoryNote = s.categoryNote
+        kind = s.kind
+        balance = if (s.balance == 0.0) "" else s.balance.plain(); balanceTouched = false
+        if (s.isInstallment) {
+            instPrincipal = s.instPrincipal.plain(); instTerms = s.instTerms.toString()
+            instRate = if (s.instRate == 0.0) "" else s.instRate.plain(); instMethod = s.instMethod
+            instFirst = s.instFirstAmount?.plain().orEmpty()
+            instCurrent = Installments.currentTerm(s).toString()
+            // 已还清的分期是自动停用的；如果用户把期数改回去，应该重新启用
+            if (Installments.isFinished(s) && !Installments.isPaidOff(s)) active = true
+        }
     }
+
+    /**
+     * 编辑页开着时，后台可能扣了款、充了值、推进了账单日。用户没动过的这几项跟着数据库走，
+     * 否则保存时会用打开页面时的旧值覆盖（比如把账单日改回已扣过的那天，下一轮又扣一次）。
+     */
+    fun syncFrom(s: Subscription) {
+        val o = original ?: return
+        if (o == s) return
+        if (next == LocalDate.ofEpochDay(o.nextBillingDay)) next = LocalDate.ofEpochDay(s.nextBillingDay)
+        if (s.isInstallment && o.isInstallment && instCurrent == Installments.currentTerm(o).toString()) {
+            instCurrent = Installments.currentTerm(s).toString()
+        }
+        if (!balanceTouched) balance = if (s.balance == 0.0) "" else s.balance.plain()
+        original = s
+    }
+
+    private fun Double.plain() = toBigDecimal().stripTrailingZeros().toPlainString()
+    private fun String.num() = replace(",", "").trim().toDoubleOrNull()
+
+    fun principalValue() = instPrincipal.num()?.takeIf { it > 0 }
+    fun termsValue() = instTerms.toIntOrNull()?.takeIf { it in 1..600 }
+    fun currentValue() = instCurrent.toIntOrNull()?.takeIf { c -> c >= 1 && c <= (termsValue() ?: 0) + 1 }
+    fun rateValue() = if (instMethod.rateLabel == null || instRate.isBlank()) 0.0 else instRate.num()?.takeIf { it >= 0 }
 
     fun applyPreset(key: String, hasImage: Boolean) {
         val p = PresetCatalog.all.firstOrNull { it.key == key } ?: return
@@ -138,27 +210,58 @@ private class Form {
         currency = p.currency
         cycleCount = p.cycleCount.toString(); cycleUnit = p.cycleUnit
         next = Billing.shift(LocalDate.now(), p.cycleCount, p.cycleUnit, LocalDate.now().dayOfMonth)
-        payMethod = p.payMethod; autoRenew = p.payMethod.defaultAuto
+        // 预设里的「手动付款」（房租、保险等）：付款方式记成「其他」，关掉自动续费就是手动
+        payMethod = if (p.payMethod == PayMethod.MANUAL) PayMethod.OTHER else p.payMethod; autoRenew = p.payMethod.defaultAuto
         category = p.category
     }
 
-    fun build(): Subscription? {
-        val amt = amount.replace(",", "").toDoubleOrNull() ?: return null
+    /** [requireName] = false：给预览用（名称还没填也能算） */
+    fun build(requireName: Boolean = true): Subscription? {
         val cnt = cycleCount.toIntOrNull()?.takeIf { it in 1..999 } ?: return null
-        if (name.isBlank()) return null
+        if (requireName && name.isBlank()) return null
         val o = original
         val dateChanged = o == null || o.nextBillingDay != next.toEpochDay()
         val base = o ?: Subscription(name = "", amount = 0.0, currency = "", nextBillingDay = 0, anchorDay = 1)
+        val anchor = if (o == null || dateChanged || o.cycleUnit != cycleUnit) next.dayOfMonth else o.anchorDay
+        val bal = (if (balanceTouched || o == null) balanceValue() else o.balance) ?: return null
+        if (isInstallment) {
+            val principal = principalValue() ?: return null
+            val terms = termsValue() ?: return null
+            val current = currentValue() ?: return null
+            val rate = rateValue() ?: return null
+            val first = if (instFirst.isBlank()) null else (instFirst.num()?.takeIf { it > 0 } ?: return null)
+            return Installments.normalize(
+                base.copy(
+                    name = name.trim(), iconType = iconType, iconValue = iconValue, color = color,
+                    currency = currency, cycleCount = cnt, cycleUnit = cycleUnit,
+                    nextBillingDay = next.toEpochDay(), anchorDay = anchor,
+                    payMethod = payMethod, autoRenew = autoRenew, category = category,
+                    remindEnabled = remind, remindDaysBefore = remindDays, active = active, note = note.trim(),
+                    presetKey = null,
+                    remindedForDay = o?.remindedForDay,
+                    overdueNotifiedDay = if (dateChanged) null else o?.overdueNotifiedDay,
+                    kind = SubKind.INSTALLMENT,
+                    instPrincipal = principal, instTerms = terms, instRate = rate, instMethod = instMethod,
+                    instFirstAmount = first,
+                    instStartDay = Installments.startFrom(next, current, cnt, cycleUnit, anchor).toEpochDay(),
+                    balance = bal,
+                    payMethodNote = payMethodNote.trim(), categoryNote = categoryNote.trim(),
+                ),
+            )
+        }
+        val amt = amount.replace(",", "").toDoubleOrNull() ?: return null
         return base.copy(
             name = name.trim(), iconType = iconType, iconValue = iconValue, color = color,
             amount = amt, currency = currency, cycleCount = cnt, cycleUnit = cycleUnit,
             nextBillingDay = next.toEpochDay(),
-            anchorDay = if (o == null || dateChanged || o.cycleUnit != cycleUnit) next.dayOfMonth else o.anchorDay,
+            anchorDay = anchor,
             payMethod = payMethod, autoRenew = autoRenew, category = category,
             remindEnabled = remind, remindDaysBefore = remindDays, active = active, note = note.trim(),
             presetKey = presetKey,
             remindedForDay = o?.remindedForDay,
             overdueNotifiedDay = if (dateChanged) null else o?.overdueNotifiedDay,
+            balance = bal,
+            payMethodNote = payMethodNote.trim(), categoryNote = categoryNote.trim(),
         )
     }
 }
@@ -170,6 +273,8 @@ private val FormSaver = androidx.compose.runtime.saveable.listSaver<Form, Any?>(
             f.name, f.iconType.name, f.iconValue, f.color, f.amount, f.currency, f.cycleCount, f.cycleUnit.name,
             f.next.toEpochDay(), f.payMethod.name, f.autoRenew, f.category.name, f.remind, f.remindDays, f.active,
             f.note, f.presetKey, f.loaded,
+            f.kind.name, f.instPrincipal, f.instTerms, f.instRate, f.instMethod.name, f.instFirst, f.instCurrent,
+            f.balance, f.balanceTouched, f.payMethodNote, f.categoryNote,
         )
     },
     restore = { l ->
@@ -180,12 +285,17 @@ private val FormSaver = androidx.compose.runtime.saveable.listSaver<Form, Any?>(
             payMethod = PayMethod.valueOf(l[9] as String); autoRenew = l[10] as Boolean; category = Category.valueOf(l[11] as String)
             remind = l[12] as Boolean; remindDays = l[13] as Int; active = l[14] as Boolean
             note = l[15] as String; presetKey = l[16] as String?; loaded = l[17] as Boolean
+            kind = SubKind.valueOf(l[18] as String); instPrincipal = l[19] as String; instTerms = l[20] as String
+            instRate = l[21] as String; instMethod = InstallmentMethod.valueOf(l[22] as String)
+            instFirst = l[23] as String; instCurrent = l[24] as String
+            balance = l[25] as String; balanceTouched = l[26] as Boolean
+            payMethodNote = l[27] as String; categoryNote = l[28] as String
         }
     },
 )
 
 @Composable
-fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Unit, prefillName: String = "") {
+fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Unit, prefillName: String = "", installment: Boolean = false) {
     val context = androidx.compose.ui.platform.LocalContext.current
     // 表单状态可保存：去相册选图时 Activity 可能被系统回收重建，回来后填写的内容和选图结果都不能丢
     val form = rememberSaveable(saver = FormSaver) { Form() }
@@ -205,6 +315,8 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
     var currencyDlg by remember { mutableStateOf(false) }
     var dateDlg by remember { mutableStateOf(false) }
     var deleteDlg by remember { mutableStateOf(false) }
+    var prepayDlg by remember { mutableStateOf(false) }
+    var undoRecord by remember { mutableStateOf<com.subnook.app.data.PaymentRecord?>(null) }
     var showErrors by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(id, presetKey) {
@@ -219,32 +331,62 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
             form.applyPreset(presetKey, IconFiles.presetRes(context, presetKey) != 0)
         } else {
             form.currency = vm.state.value.settings.displayCurrency
+            // 自定义订阅 / 分期：图标颜色随机，不总是同一个绿色
+            form.color = PaletteColors.random()
+            if (installment) form.startInstallment(vm.state.value.settings.displayCurrency)
             // 从搜索框带过来的名称
             form.name = prefillName
         }
         form.loaded = true
     }
+    // 后台扣款 / 充值 / 推进账单日后，表单里用户没改过的字段跟着更新（见 Form.syncFrom）
+    LaunchedEffect(id) {
+        if (id <= 0) return@LaunchedEffect
+        vm.observeSub(id).collect { s -> if (s != null && form.loaded) form.syncFrom(s) }
+    }
     val paymentsFlow = remember(id) { if (id > 0) vm.observePayments(id) else kotlinx.coroutines.flow.flowOf(emptyList()) }
     val payments by paymentsFlow.collectAsState(emptyList())
+    val topUpsFlow = remember(id) { if (id > 0) vm.observeTopUps(id) else kotlinx.coroutines.flow.flowOf(emptyList()) }
+    val topUps by topUpsFlow.collectAsState(emptyList())
 
-    val save = save@{
+    // 「其他」填的分类名：这次编辑里已经问过要不要加入分类列表的名称（不重复问）
+    var askedCategory by rememberSaveable { mutableStateOf<String?>(null) }
+    var askedPayMethod by rememberSaveable { mutableStateOf<String?>(null) }
+    var saveAsk by remember { mutableStateOf<String?>(null) }
+    var savePayAsk by remember { mutableStateOf<String?>(null) }
+    fun doSave() {
         // 编辑已有订阅时，原始记录还没读出来就先不保存，免得被当成新订阅
-        if (id > 0 && form.original == null) return@save
+        if (id > 0 && form.original == null) return
         val s = form.build()
         if (s == null) {
             showErrors = true
-            vm.toast("请填写名称、金额和正确的周期")
-        } else {
-            vm.save(s)
-            onBack()
+            vm.toast(if (form.isInstallment) "请填写名称、分期金额、期数和正确的当前期数" else "请填写名称、金额和正确的周期")
+            return
         }
+        // 填了新分类名但还没问过（没离开输入框就点了保存）：先问再保存
+        val n = com.subnook.app.data.cleanCategory(form.categoryNote)
+        if (form.category == Category.OTHER && needsAsk(n, st.settings.customCategories, askedCategory)) {
+            saveAsk = n
+            return
+        }
+        val pn = com.subnook.app.data.cleanCategory(form.payMethodNote)
+        if (form.payMethod == PayMethod.OTHER && needsAskName(pn, st.settings.customPayMethods, askedPayMethod, payMethodLabels())) {
+            savePayAsk = pn
+            return
+        }
+        vm.save(s, keepDbBalance = !form.balanceTouched)
+        onBack()
     }
+    val save = { doSave() }
 
     Scaffold(
         containerColor = cs.background,
         topBar = {
             TopAppBar(
-                title = { Text(if (id > 0) "编辑订阅" else "新建订阅", style = MaterialTheme.typography.titleLarge) },
+                title = {
+                    val what = if (form.isInstallment) "分期" else "订阅"
+                    Text(if (id > 0) "编辑$what" else "新建$what", style = MaterialTheme.typography.titleLarge)
+                },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") } },
                 actions = {
                     if (id > 0) IconButton(onClick = { deleteDlg = true }) { Icon(Icons.Rounded.DeleteOutline, "删除", tint = extra.danger) }
@@ -262,7 +404,12 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                         .shadow(12.dp, RoundedCornerShape(18.dp), spotColor = Color(0xFF4F46E5))
                         .clip(RoundedCornerShape(18.dp)).background(extra.accentBrush).clickable { save() },
                     contentAlignment = Alignment.Center,
-                ) { Text(if (id > 0) "保存修改" else "添加订阅", style = MaterialTheme.typography.titleMedium, color = Color.White) }
+                ) {
+                    Text(
+                        if (id > 0) "保存修改" else if (form.isInstallment) "添加分期" else "添加订阅",
+                        style = MaterialTheme.typography.titleMedium, color = Color.White,
+                    )
+                }
             }
         },
     ) { pad ->
@@ -286,12 +433,27 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                 }
                 Spacer(Modifier.height(18.dp))
                 Field(
-                    form.name, { form.name = it }, "订阅名称",
+                    form.name, { form.name = it }, if (form.isInstallment) "名称（如：手机分期）" else "订阅名称",
                     isError = showErrors && form.name.isBlank(), modifier = Modifier.fillMaxWidth(),
                 )
             }
 
-            Group("金额与周期") {
+            // 「启用中」放在最前面；关掉后下面的内容都收起来。已经提前还清的分期没有开关，内容照常显示（要能撤销提前还款）
+            val paidOff = form.original?.let { Installments.isPaidOff(it) } == true
+            if (paidOff) {
+                SoftCardRow { Pill("已提前还清", extra.success) }
+            } else {
+                SoftCardRow {
+                    SwitchRow(Icons.Rounded.PowerSettingsNew, cs.primary, "启用中", null, form.active) { form.active = it }
+                }
+            }
+
+            androidx.compose.animation.AnimatedVisibility(visible = form.active || paidOff) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            if (form.isInstallment) {
+                InstallmentFields(form, showErrors, onCurrency = { currencyDlg = true }, onDate = { dateDlg = true })
+                InstallmentPlan(form)
+            } else Group("金额与周期") {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Field(
@@ -342,35 +504,42 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
 
             Group("付款方式") {
                 Column(Modifier.padding(16.dp)) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PayMethod.entries.forEach { m ->
-                            Chip(m.label, form.payMethod == m) {
-                                if (form.payMethod != m) form.autoRenew = m.defaultAuto
-                                form.payMethod = m
-                            }
-                        }
-                    }
+                    // 分期只列能分期的方式（花呗、白条、信用卡等）；手动 / 自动只看下面的开关
+                    PayMethodPicker(
+                        form, st.settings.customPayMethods,
+                        onAddCustom = vm::addCustomPayMethod, onRemoveCustom = vm::removeCustomPayMethod,
+                        askedFor = askedPayMethod, onAsked = { askedPayMethod = it },
+                    )
                     Spacer(Modifier.height(14.dp))
                     SwitchRow(
-                        Icons.Rounded.Autorenew, extra.success, "自动续费",
-                        if (form.autoRenew) "到期自动扣款，账单日过后自动记账并更新下次日期" else "手动付款：到期后需点「我已付款」才会更新下次日期",
-                        form.autoRenew,
+                        Icons.Rounded.Autorenew, extra.success, if (form.isInstallment) "自动扣款" else "自动续费",
+                        null, form.autoRenew,
                     ) { form.autoRenew = it }
                 }
             }
 
-            Group("分类") {
-                FlowRow(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Category.entries.forEach { c -> Chip(c.label, form.category == c) { form.category = c } }
-                }
+            if (form.payMethod == PayMethod.BALANCE) {
+                BalanceGroup(
+                    form, topUps,
+                    onCurrency = { currencyDlg = true },
+                    onTopUp = if (id > 0 && form.original != null) { amount -> form.original?.let { vm.topUp(it, amount) }; form.adjustBalance(amount) } else null,
+                    onDeleteTopUp = { t -> vm.deleteTopUp(t); form.adjustBalance(-t.amount) },
+                )
             }
 
-            Group("提醒与状态") {
+            Group("分类") {
+                CategoryPicker(
+                    form, st.settings.customCategories,
+                    onAddCustom = vm::addCustomCategory, onRemoveCustom = vm::removeCustomCategory,
+                    askedFor = askedCategory, onAsked = { askedCategory = it },
+                )
+            }
+
+            Group("提醒") {
                 Column(Modifier.padding(16.dp)) {
                     SwitchRow(
                         Icons.Rounded.NotificationsActive, extra.warning, "扣款提醒",
-                        if (form.remindDays == 0) "仅在账单日当天提醒" else "从账单日前 ${form.remindDays} 天开始，每天提醒一次，直到账单日",
-                        form.remind,
+                        null, form.remind,
                     ) { form.remind = it }
                     if (form.remind) {
                         Spacer(Modifier.height(12.dp))
@@ -393,10 +562,6 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                             listOf(1, 3, 7, 14).forEach { d -> Chip("${d}天", form.remindDays == d) { form.remindDays = d } }
                         }
                     }
-                    Spacer(Modifier.height(14.dp))
-                    HorizontalDivider(color = cs.outlineVariant)
-                    Spacer(Modifier.height(14.dp))
-                    SwitchRow(Icons.Rounded.PowerSettingsNew, cs.primary, "启用中", "关闭后不计入统计、不提醒（相当于已退订）", form.active) { form.active = it }
                 }
             }
 
@@ -410,7 +575,7 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
             if (id > 0) {
                 form.build()?.let { s ->
                     val cur = st.settings.displayCurrency
-                    Group("折合") {
+                    if (!s.isInstallment) Group("折合") {
                         Row(Modifier.padding(16.dp)) {
                             listOf(SummaryPeriod.WEEK, SummaryPeriod.MONTH, SummaryPeriod.YEAR).forEach { p ->
                                 Column(Modifier.weight(1f)) {
@@ -423,35 +588,64 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                             }
                         }
                     }
-                    if (!s.autoRenew && s.active) {
+                    if (!s.autoRenew && s.active && !Installments.isFinished(s)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             OutlinedButton(onClick = { vm.skip(s); onBack() }, Modifier.weight(1f).height(48.dp), shape = RoundedCornerShape(14.dp)) { Text("跳过本期") }
                             Button(onClick = { vm.confirmPaid(s); onBack() }, Modifier.weight(1.4f).height(48.dp), shape = RoundedCornerShape(14.dp)) { Text("本期已付款") }
                         }
                     }
                 }
+                // 提前还款：按数据库里保存的分期算（不是表单里还没保存的改动）
+                val stored = form.original
+                if (stored != null && stored.isInstallment && stored.active && !Installments.isFinished(stored)) {
+                    OutlinedButton(
+                        onClick = { prepayDlg = true }, Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(14.dp),
+                    ) { Text("提前还款") }
+                }
                 Group("付款记录 · ${payments.size}") {
                     if (payments.isEmpty()) {
                         Text(
-                            "暂无记录。自动续费在账单日过后自动记账，手动付款在确认后记账。",
+                            "暂无记录",
                             style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(16.dp),
                         )
                     }
-                    payments.take(60).forEachIndexed { i, p ->
-                        if (i > 0) HorizontalDivider(Modifier.padding(start = 16.dp), color = cs.outlineVariant)
-                        Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    // 最多显示 3 条，多的在框里滑动
+                    com.subnook.app.ui.components.CappedList(payments, rowHeight = 60.dp, key = { it.id }) { p ->
+                        Row(Modifier.fillMaxSize().padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(Currencies.formatList(p.amount, p.currency), style = MaterialTheme.typography.titleSmall.merge(TabularNums))
                                 Text(
-                                    LocalDate.ofEpochDay(p.billingDay).format(DateTimeFormatter.ofPattern("yyyy年M月d日")),
+                                    LocalDate.ofEpochDay(p.billingDay).let { d ->
+                                        val o = form.original
+                                        d.format(DateTimeFormatter.ofPattern("yyyy年M月d日")) + when {
+                                            p.prepay -> ""
+                                            o != null && o.isInstallment -> " · 第 ${p.term ?: Installments.displayTerm(o, d)} 期"
+                                            else -> ""
+                                        } + if (p.balanceUsed > 0) " · 余额扣 ${Currencies.formatList(p.balanceUsed, p.currency)}" else ""
+                                    },
                                     style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+                                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                 )
                             }
-                            Pill(if (p.auto) "自动" else "手动确认", if (p.auto) extra.success else cs.primary)
-                            IconButton(onClick = { vm.deletePayment(p) }) { Icon(Icons.Rounded.Close, "删除记录", Modifier.size(18.dp), tint = cs.outline) }
+                            when {
+                                p.prepay -> Pill(
+                                    if (form.original?.instPaidOffDay == p.billingDay) "提前还清" else "提前还款", extra.warning,
+                                )
+                                else -> Pill(if (p.auto) "自动" else "手动确认", if (p.auto) extra.success else cs.primary)
+                            }
+                            IconButton(onClick = {
+                                if (p.prepay) undoRecord = p
+                                else {
+                                    // 余额付款的记录：钱退回余额，输入框也同步
+                                    if (p.balanceUsed > 0) form.adjustBalance(p.balanceUsed)
+                                    vm.deletePayment(p)
+                                }
+                            }) { Icon(Icons.Rounded.Close, "删除记录", Modifier.size(18.dp), tint = cs.outline) }
                         }
                     }
                 }
+            }
+            }
             }
             Spacer(Modifier.height(16.dp))
         }
@@ -489,11 +683,51 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
             dismissButton = { TextButton(onClick = { dateDlg = false }) { Text("取消") } },
         ) { DatePicker(state) }
     }
+    saveAsk?.let { name ->
+        val answer = { add: Boolean ->
+            if (add) vm.addCustomCategory(name)
+            askedCategory = name
+            saveAsk = null
+            doSave()
+        }
+        AddCategoryDialog(name) { add -> answer(add) }
+    }
+    savePayAsk?.let { name ->
+        AddCategoryDialog(name, what = "付款方式") { add ->
+            if (add) vm.addCustomPayMethod(name)
+            askedPayMethod = name
+            savePayAsk = null
+            doSave()
+        }
+    }
+    undoRecord?.let { p ->
+        AppAlertDialog(
+            onDismissRequest = { undoRecord = null },
+            title = { Text("撤销这笔提前还款？") },
+            text = {
+                Text(
+                    "删除这条 ${Currencies.formatList(p.amount, p.currency)} 的记录，分期恢复到提前还款前。",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { undoRecord = null; vm.undoPrepay(p) { onBack() } }) {
+                    Text("撤销并恢复", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { undoRecord = null }) { Text("取消") } },
+        )
+    }
+    if (prepayDlg) form.original?.let { o ->
+        PrepayDialog(o, onDismiss = { prepayDlg = false }) { amount, mode ->
+            prepayDlg = false
+            vm.prepay(o, amount, mode) { onBack() }
+        }
+    }
     if (deleteDlg) {
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { deleteDlg = false },
             title = { Text("删除「${form.name}」？") },
-            text = { Text("订阅和它的付款记录都会被删除，无法恢复。如果只是退订，可以关闭「启用中」保留记录。") },
+            text = { Text("付款记录会一起删除，无法恢复。") },
             confirmButton = {
                 TextButton(onClick = { form.original?.let(vm::delete); deleteDlg = false; onBack() }) {
                     Text("删除", color = MaterialTheme.colorScheme.error)
@@ -506,7 +740,7 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
 
 /** 填充式输入框（无描边，浅灰底） */
 @Composable
-private fun Field(
+internal fun Field(
     value: String,
     onChange: (String) -> Unit,
     label: String?,
@@ -544,7 +778,7 @@ private fun StepButton(text: String, enabled: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Chip(text: String, selected: Boolean, onClick: () -> Unit) {
+internal fun Chip(text: String, selected: Boolean, onClick: () -> Unit) {
     val extra = LocalExtra.current
     val cs = MaterialTheme.colorScheme
     Box(
@@ -558,7 +792,7 @@ private fun Chip(text: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, modifier: Modifier = Modifier, onSelect: (T) -> Unit) {
+internal fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, modifier: Modifier = Modifier, onSelect: (T) -> Unit) {
     val cs = MaterialTheme.colorScheme
     Row(modifier.clip(RoundedCornerShape(14.dp)).background(cs.surfaceContainer).padding(4.dp)) {
         options.forEach { o ->
@@ -576,15 +810,24 @@ private fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, m
 }
 
 @Composable
-private fun SwitchRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, title: String, desc: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun SwitchRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, title: String, desc: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth().clickable(interactionSource = null, indication = null) { onChange(!checked) }, verticalAlignment = Alignment.CenterVertically) {
         IconTile(icon, tint, size = 34.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleSmall)
-            Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (!desc.isNullOrBlank()) Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.width(10.dp))
         Switch(checked, onChange)
     }
+}
+
+/** 白色圆角卡片里放一行（「启用中」开关用） */
+@Composable
+private fun SoftCardRow(content: @Composable () -> Unit) {
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) { content() }
 }

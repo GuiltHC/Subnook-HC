@@ -130,7 +130,7 @@ class SubnookWidget : GlanceAppWidget() {
         val today = LocalDate.now()
         val active = subs.filter { it.active }
         val next30 = active.sumOf { s ->
-            Billing.upcoming(s, today, today.plusDays(29)).size * rates.convert(s.amount, s.currency, cur)
+            rates.convert(Billing.upcomingCost(s, today, today.plusDays(29)), s.currency, cur)
         }
         // 列表可以滑动，多给一些（RemoteViews 有大小限制，不要无限多）
         val items = active.sortedBy { it.nextBillingDay }.take(30).map { s ->

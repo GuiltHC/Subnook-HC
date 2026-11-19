@@ -93,8 +93,8 @@ private val tabs = listOf(
 object Routes {
     const val PRESETS = "presets"
     const val STATS = "stats"
-    fun edit(id: Long = 0, preset: String? = null, name: String? = null) =
-        "edit?id=$id&preset=${preset ?: ""}&name=${android.net.Uri.encode(name ?: "")}"
+    fun edit(id: Long = 0, preset: String? = null, name: String? = null, installment: Boolean = false) =
+        "edit?id=$id&preset=${preset ?: ""}&name=${android.net.Uri.encode(name ?: "")}&inst=$installment"
 }
 
 @Composable
@@ -151,7 +151,13 @@ private fun AppRoot(vm: MainViewModel, openSubId: Long, consumeOpen: () -> Unit)
         ) {
             composable("home") {
                 androidx.compose.foundation.layout.Box {
-                    HomeScreen(vm, onAdd = { nav.navigate(Routes.PRESETS) }, onOpen = { nav.navigate(Routes.edit(it)) }, onStats = { nav.navigate(Routes.STATS) })
+                    HomeScreen(
+                        vm,
+                        onAddSubscription = { nav.navigate(Routes.PRESETS) },
+                        onAddInstallment = { nav.navigate(Routes.edit(installment = true)) },
+                        onOpen = { nav.navigate(Routes.edit(it)) },
+                        onStats = { nav.navigate(Routes.STATS) },
+                    )
                     StatusBarScrim()
                 }
             }
@@ -179,11 +185,12 @@ private fun AppRoot(vm: MainViewModel, openSubId: Long, consumeOpen: () -> Unit)
                 )
             }
             composable(
-                "edit?id={id}&preset={preset}&name={name}",
+                "edit?id={id}&preset={preset}&name={name}&inst={inst}",
                 arguments = listOf(
                     navArgument("id") { type = NavType.LongType; defaultValue = 0L },
                     navArgument("preset") { type = NavType.StringType; defaultValue = "" },
                     navArgument("name") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("inst") { type = NavType.BoolType; defaultValue = false },
                 ),
             ) { entry ->
                 EditScreen(
@@ -191,6 +198,7 @@ private fun AppRoot(vm: MainViewModel, openSubId: Long, consumeOpen: () -> Unit)
                     id = entry.arguments?.getLong("id") ?: 0L,
                     presetKey = entry.arguments?.getString("preset").orEmpty().ifBlank { null },
                     prefillName = entry.arguments?.getString("name").orEmpty(),
+                    installment = entry.arguments?.getBoolean("inst") ?: false,
                     onBack = { nav.popBackStack() },
                 )
             }

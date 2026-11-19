@@ -46,14 +46,37 @@ class Notifier(private val context: Context) {
             1L -> "明天"
             else -> "${days}天后（${due.format(DateTimeFormatter.ofPattern("M月d日"))}）"
         }
-        val action = if (sub.autoRenew) "将自动扣款（${sub.payMethod.label}）" else "需要手动付款（${sub.payMethod.label}）"
-        post(sub, "${sub.name} $whenText$action", "金额 ${Currencies.formatList(sub.amount, sub.currency)}", withConfirm = days <= Billing.PAYABLE_DAYS)
+        val amount = Billing.amountOn(sub, due)
+        // 余额付款且余额不够：提醒先充值
+        val lowBalance = com.subnook.app.domain.Balance.usesBalance(sub) && !com.subnook.app.domain.Balance.canPay(sub, amount)
+        val action = when {
+            lowBalance -> "要扣款，余额不足"
+            sub.autoRenew -> "将自动扣款（${sub.payMethodLabel}）"
+            else -> "需要手动付款（${sub.payMethodLabel}）"
+        }
+        val inst = if (sub.isInstallment) com.subnook.app.domain.Installments.progressText(sub) + " · " else ""
+        val text = if (lowBalance) {
+            "${inst}需 ${Currencies.formatList(amount, sub.currency)}，余额只有 ${Currencies.formatList(sub.balance, sub.currency)}，请先充值"
+        } else {
+            "${inst}金额 ${Currencies.formatList(amount, sub.currency)}"
+        }
+        post(sub, "${sub.name} $whenText$action", text, withConfirm = days <= Billing.PAYABLE_DAYS)
     }
 
     fun overdue(sub: Subscription, today: LocalDate) {
         val due = LocalDate.ofEpochDay(sub.nextBillingDay)
         val days = ChronoUnit.DAYS.between(due, today)
-        post(sub, "${sub.name} 已逾期 $days 天未确认付款", "账单日 ${due.format(DateTimeFormatter.ofPattern("M月d日"))} · ${Currencies.formatList(sub.amount, sub.currency)}，付完后点「已付款」", withConfirm = true)
+        val amount = Billing.amountOn(sub, due)
+        val dueText = due.format(DateTimeFormatter.ofPattern("M月d日"))
+        if (sub.autoRenew && com.subnook.app.domain.Balance.usesBalance(sub)) {
+            post(
+                sub, "${sub.name} 余额不足，已逾期 $days 天",
+                "账单日 $dueText 需 ${Currencies.formatList(amount, sub.currency)}，余额 ${Currencies.formatList(sub.balance, sub.currency)}；充值后点「已付款」",
+                withConfirm = true,
+            )
+            return
+        }
+        post(sub, "${sub.name} 已逾期 $days 天未确认付款", "账单日 $dueText · ${Currencies.formatList(amount, sub.currency)}，付完后点「已付款」", withConfirm = true)
     }
 
     private fun post(sub: Subscription, title: String, text: String, withConfirm: Boolean) {

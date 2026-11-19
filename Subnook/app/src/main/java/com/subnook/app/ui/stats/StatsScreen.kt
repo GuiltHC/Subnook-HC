@@ -91,9 +91,9 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
     val monthTotal = active.sumOf(::monthly)
 
     // 分类
-    val byCategory = active.groupBy { it.category }.map { (c, l) -> c to l }
+    val byCategory = active.groupBy { it.categoryLabel }.map { (c, l) -> c to l }
         .sortedByDescending { (_, l) -> l.sumOf(::monthly) }
-        .mapIndexed { i, (c, l) -> Slice(c.label, l.sumOf(::monthly), ChartColors[i % ChartColors.size], l.size) }
+        .mapIndexed { i, (c, l) -> Slice(c, l.sumOf(::monthly), ChartColors[i % ChartColors.size], l.size) }
 
     // 未来 12 个月实际要付
     val today = LocalDate.now()
@@ -101,7 +101,7 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
     val perMonth = months.map { ym ->
         val from = maxOf(ym.atDay(1), today)
         val to = ym.atEndOfMonth()
-        active.sumOf { s -> Billing.upcoming(s, from, to).size * st.rates.convert(s.amount, s.currency, cur) }
+        active.sumOf { s -> st.rates.convert(Billing.upcomingCost(s, from, to), s.currency, cur) }
     }
 
     // 已付
@@ -200,13 +200,34 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
             }
 
             item {
-                val byMethod = active.groupBy { it.payMethod }
+                val byMethod = active.groupBy { it.payMethodLabel }
                     .map { (m, l) -> m to l }.sortedByDescending { (_, l) -> l.sumOf(::monthly) }
-                    .mapIndexed { i, (m, l) -> Slice(m.label, l.sumOf(::monthly), ChartColors[(i + 3) % ChartColors.size], l.size) }
+                    .mapIndexed { i, (m, l) -> Slice(m, l.sumOf(::monthly), ChartColors[(i + 3) % ChartColors.size], l.size) }
                 Group("按付款方式（每月）") {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         StackBar(byMethod)
                         byMethod.forEach { s -> LegendRow(s, monthTotal, cur) }
+                    }
+                }
+            }
+
+            // 有分期时：订阅和分期各占多少（两者都已计入上面的总额和各项统计）
+            if (active.any { it.isInstallment }) item {
+                val subs = active.filter { !it.isInstallment }
+                val inst = active.filter { it.isInstallment }
+                val parts = listOf(
+                    Slice("订阅", subs.sumOf(::monthly), ChartColors[0], subs.size),
+                    Slice("分期还款", inst.sumOf(::monthly), ChartColors[7], inst.size),
+                ).filter { it.count > 0 }
+                val left = inst.sumOf { st.rates.convert(com.subnook.app.domain.Installments.summary(it).remainingAmount, it.currency, cur) }
+                Group("订阅 / 分期（每月）") {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        StackBar(parts)
+                        parts.forEach { s -> LegendRow(s, monthTotal, cur) }
+                        Text(
+                            "分期剩余待还 ${Currencies.format(left, cur)}",
+                            style = MaterialTheme.typography.bodySmall.merge(TabularNums), color = cs.onSurfaceVariant,
+                        )
                     }
                 }
             }
@@ -262,10 +283,11 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
                         StatCell("付款笔数", "${payments.size}", Modifier.weight(0.7f))
                     }
                     if (payments.isNotEmpty()) {
-                        val recent = payments.take(5)
-                        recent.forEach { p ->
-                            val s = byId[p.subscriptionId] ?: return@forEach
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        // 最多显示 3 条，多的在框里滑动（以前只显示最近 5 条）
+                        val recent = payments.filter { byId.containsKey(it.subscriptionId) }
+                        com.subnook.app.ui.components.CappedList(recent, rowHeight = 44.dp, key = { it.id }) { p ->
+                            val s = byId.getValue(p.subscriptionId)
+                            Row(Modifier.fillMaxWidth().fillMaxHeight().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                                 SubIcon(s.iconType, s.iconValue, s.color, s.name, size = 28.dp)
                                 Spacer(Modifier.width(10.dp))
                                 Text(s.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)

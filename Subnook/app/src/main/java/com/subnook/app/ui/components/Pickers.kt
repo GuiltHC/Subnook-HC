@@ -57,7 +57,7 @@ import com.subnook.app.data.PresetCatalog
 @Composable
 fun CurrencyPickerDialog(current: String, onDismiss: () -> Unit, onPick: (String) -> Unit) {
     var q by remember { mutableStateOf("") }
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text("取消") } },
         title = { Text("选择币种") },
@@ -161,7 +161,7 @@ fun IconPickerSheet(
                     }
                 }
                 else -> {
-                    Text("文字图标（取名称首字）", style = MaterialTheme.typography.labelLarge)
+                    Text("文字图标", style = MaterialTheme.typography.labelLarge)
                     Spacer(Modifier.height(6.dp))
                     ColorRow(color, onColor)
                     Spacer(Modifier.height(10.dp))

@@ -32,7 +32,16 @@ object Billing {
         shift(from, sub.cycleCount, sub.cycleUnit, sub.anchorDay, -1)
 
     /** 订阅在 [from, to] 区间内的所有账单日（基于下次付款日向前/向后推算） */
-    fun occurrences(sub: Subscription, from: LocalDate, to: LocalDate): List<LocalDate> {
+    fun occurrences(sub: Subscription, fromDate: LocalDate, toDate: LocalDate): List<LocalDate> {
+        var from = fromDate
+        var to = toDate
+        // 分期只有第 1 期到最后一期之间的还款日
+        if (sub.isInstallment) {
+            if (Installments.isPaidOff(sub)) return emptyList()
+            from = maxOf(from, Installments.startDate(sub))
+            to = minOf(to, Installments.endDate(sub))
+            if (from > to) return emptyList()
+        }
         val out = mutableListOf<LocalDate>()
         val base = LocalDate.ofEpochDay(sub.nextBillingDay)
         var d = base
@@ -56,6 +65,14 @@ object Billing {
      */
     fun upcoming(sub: Subscription, from: LocalDate, to: LocalDate): List<LocalDate> =
         occurrences(sub, maxOf(from, LocalDate.ofEpochDay(sub.nextBillingDay)), to)
+
+    /** 某个账单日要付的金额：订阅每期一样，分期按还款计划 */
+    fun amountOn(sub: Subscription, date: LocalDate): Double =
+        if (sub.isInstallment) Installments.amountOn(sub, date) else sub.amount
+
+    /** [from, to] 内还没付的账单合计（原币种） */
+    fun upcomingCost(sub: Subscription, from: LocalDate, to: LocalDate): Double =
+        upcoming(sub, from, to).sumOf { amountOn(sub, it) }
 
     /** 折算为每年花费（原币种） */
     fun yearlyCost(sub: Subscription): Double {
