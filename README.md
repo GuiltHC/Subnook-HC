@@ -3,12 +3,15 @@
 Subnook 是一个简洁的 Android 订阅和分期管理 App：记录各种会员 / 订阅 / 定期账单和分期付款，自动滚动扣款日期，到期前提醒，并按周 / 月 / 年统计花费。数据保存在本机，也可以备份到你自己的 WebDAV。
 
 <p>
-  <img src="docs/screenshots/home.png" width="200" alt="首页">
+  <img src="docs/screenshots/home.png" width="200" alt="首页月均支出与待付款订阅">
+  <img src="docs/screenshots/installment-plan.png" width="200" alt="分期还款计划与每期本金、手续费明细">
+  <img src="docs/screenshots/balance.png" width="200" alt="余额可付期数、下次充值日期与充值记录">
+</p>
+
+<p>
   <img src="docs/screenshots/list.png" width="200" alt="多币种订阅列表">
-  <img src="docs/screenshots/stats.png" width="200" alt="统计">
-  <img src="docs/screenshots/currencies.png" width="200" alt="按原始币种统计">
-  <img src="docs/screenshots/calendar.png" width="200" alt="日历">
-  <img src="docs/screenshots/edit.png" width="200" alt="编辑">
+  <img src="docs/screenshots/stats.png" width="200" alt="月均支出与分类占比">
+  <img src="docs/screenshots/calendar.png" width="200" alt="账单日历与所选日期的 HBO Max 账单">
 </p>
 
 ## 功能
