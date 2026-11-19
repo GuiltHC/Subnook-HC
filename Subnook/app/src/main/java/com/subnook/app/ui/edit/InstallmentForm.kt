@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import com.subnook.app.data.Currencies
 import com.subnook.app.data.CycleUnit
 import com.subnook.app.data.InstallmentMethod
+import com.subnook.app.data.SubKind
+import com.subnook.app.data.Subscription
 import com.subnook.app.domain.Installments
 import com.subnook.app.ui.components.Group
 import com.subnook.app.ui.components.IconTile
@@ -55,11 +57,7 @@ internal fun InstallmentFields(form: Form, showErrors: Boolean, onCurrency: () -
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Field(
-                    form.instPrincipal, { form.instPrincipal = it.decimalOnly() }, when {
-                        prepaid != null -> "剩余本金（提前还款后）"
-                        form.shortFirst -> "完整分期本金"
-                        else -> "分期总金额（本金）"
-                    },
+                    form.instPrincipal, { form.instPrincipal = it.decimalOnly() }, if (prepaid != null) "剩余本金（提前还款后）" else "分期总金额（本金）",
                     keyboard = KeyboardType.Decimal,
                     isError = showErrors && form.principalValue() == null,
                     modifier = Modifier.weight(1f),
@@ -129,14 +127,11 @@ internal fun InstallmentFields(form: Form, showErrors: Boolean, onCurrency: () -
                 }
             }
             Field(
-                form.instFirst, { form.instFirst = it.decimalOnly() }, if (form.shortFirst) "短首期实还金额" else "首期金额（可选）",
-                keyboard = KeyboardType.Decimal,
-                isError = showErrors && (form.shortFirst || form.instFirst.isNotBlank()) && (form.instFirst.toDoubleOrNull() ?: 0.0) <= 0.0,
+                form.instFirst, { form.instFirst = it.decimalOnly() }, "首期金额（可选）",
+                    keyboard = KeyboardType.Decimal,
+                    isError = showErrors && form.instFirst.isNotBlank() && (form.instFirst.toDoubleOrNull() ?: 0.0) <= 0.0,
                 modifier = Modifier.fillMaxWidth(),
             )
-            if (prepaid == null && (form.shortFirst || form.instFirst.isNotBlank())) {
-                Segmented(listOf(false, true), form.shortFirst, { if (it) "另计短首期" else "计入期数" }, Modifier.fillMaxWidth(), form::chooseShortFirst)
-            }
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(cs.surfaceContainer).clickable(onClick = onDate)
                     .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -154,21 +149,16 @@ internal fun InstallmentFields(form: Form, showErrors: Boolean, onCurrency: () -
                 Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = cs.outline)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (form.shortFirst) "本次还款" else "这次还第", style = MaterialTheme.typography.titleSmall)
+                Text("这次还第", style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.width(8.dp))
                 Field(
-                    if (form.shortFirst && form.instCurrent == "0") "" else form.instCurrent,
-                    { form.instCurrent = it.filter(Char::isDigit).take(3) }, null,
+                    form.instCurrent, { form.instCurrent = it.filter(Char::isDigit).take(3) }, null,
                     keyboard = KeyboardType.Number,
                     isError = showErrors && form.currentValue() == null,
                     modifier = Modifier.width(72.dp), textStyle = center,
                 )
                 Spacer(Modifier.width(8.dp))
                 Text("期", style = MaterialTheme.typography.titleSmall)
-                if (form.shortFirst) {
-                    Spacer(Modifier.width(6.dp))
-                    Chip("短首期", form.instCurrent == "0") { form.instCurrent = "0" }
-                }
                 Spacer(Modifier.weight(1f))
                 val cur = form.currentValue()
                 val terms = form.termsValue()
@@ -176,7 +166,7 @@ internal fun InstallmentFields(form: Form, showErrors: Boolean, onCurrency: () -
                     when {
                         cur == null || terms == null -> "填 1 ~ ${terms ?: "期数"}"
                         cur > terms -> "已全部还清"
-                        else -> "已还 ${(cur - 1).coerceAtLeast(0)} 期"
+                        else -> "已还 ${cur - 1} 期"
                     },
                     style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
                 )
@@ -191,9 +181,31 @@ internal fun InstallmentPlan(form: Form) {
     val cs = MaterialTheme.colorScheme
     val extra = LocalExtra.current
     var expanded by rememberSaveable { mutableStateOf(false) }
-    val full = form.build(requireName = false) ?: return
+    val principal = form.principalValue()
+    val terms = form.termsValue()
+    val current = form.currentValue()
+    val rate = form.rateValue()
+    val cnt = form.cycleCount.toIntOrNull()?.takeIf { it in 1..999 }
+    // 还没填完整就不显示这一块
+    if (principal == null || terms == null || current == null || rate == null || cnt == null) return
     Group("还款计划") {
-        val sched = Installments.schedule(full)
+        val anchor = form.next.dayOfMonth
+        val sub = Subscription(
+            name = "", amount = 0.0, currency = form.currency, cycleCount = cnt, cycleUnit = form.cycleUnit,
+            nextBillingDay = form.next.toEpochDay(), anchorDay = anchor,
+            kind = SubKind.INSTALLMENT, instPrincipal = principal, instTerms = terms, instRate = rate,
+            instMethod = form.instMethod, instFirstAmount = form.instFirst.toDoubleOrNull()?.takeIf { it > 0 },
+            instStartDay = Installments.startFrom(form.next, current, cnt, form.cycleUnit, anchor).toEpochDay(),
+        )
+        // 提前还款过的分期：带上之前已还的期数和金额，显示的是整笔分期的数字
+        val o = form.original?.takeIf { it.isInstallment }
+        val full = if (o == null) sub else sub.copy(
+            instTermOffset = o.instTermOffset, instPaidBefore = o.instPaidBefore,
+            instPrincipalBefore = o.instPrincipalBefore, instPaidOffDay = o.instPaidOffDay,
+        )
+        val offset = full.instTermOffset
+        val parts = Installments.parts(sub)
+        val sched = Installments.schedule(sub)
         val sum = Installments.summary(full)
         fun money(v: Double) = Currencies.formatList(v, form.currency)
         if (Installments.isPaidOff(full)) {
@@ -215,7 +227,7 @@ internal fun InstallmentPlan(form: Form) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        if (sum.finished) "已全部还清" else "本期应还（${sum.currentLabel}）",
+                        if (sum.finished) "已全部还清" else "本期应还（第 ${sum.current}/${sum.total} 期）",
                         style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant,
                     )
                     Text(
@@ -236,13 +248,12 @@ internal fun InstallmentPlan(form: Form) {
             }
             Spacer(Modifier.height(10.dp))
             Row {
-                PlanStat(Installments.termLabel(sched.first().index), sched.first().date.format(DateTimeFormatter.ofPattern("yyyy年M月d日")), Modifier.weight(1f))
+                PlanStat("第 ${offset + 1} 期", sched.first().date.format(DateTimeFormatter.ofPattern("yyyy年M月d日")), Modifier.weight(1f))
                 PlanStat("最后一期", sum.endDate.format(DateTimeFormatter.ofPattern("yyyy年M月d日")), Modifier.weight(1f))
             }
             // 手续费方式：提示折合的实际年化（每期 0.6% 看着少，年化其实约 13%）
             if (form.instMethod == InstallmentMethod.FEE || form.instMethod == InstallmentMethod.FEE_UPFRONT) {
-                val parts = Installments.parts(full).drop(if (full.hasShortFirstInSegment) 1 else 0)
-                Installments.annualizedRate(parts, parts.sumOf { it.principal }, full.cycleCount, full.cycleUnit)?.let { apr ->
+                Installments.annualizedRate(parts, principal, cnt, form.cycleUnit)?.let { apr ->
                     Spacer(Modifier.height(10.dp))
                     Text(
                         "年化约 ${"%.2f".format(apr)}%",
@@ -256,16 +267,17 @@ internal fun InstallmentPlan(form: Form) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    if (expanded) "收起每期明细" else "查看每期明细（${sched.size} 笔）",
+                    if (expanded) "收起每期明细" else "查看每期明细（${sched.size} 期）",
                     style = MaterialTheme.typography.labelLarge, color = cs.primary, modifier = Modifier.weight(1f),
                 )
                 Icon(if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown, null, tint = cs.primary)
             }
             // 最多显示 5 期，多的在框里滑动；打开时直接停在当前期附近
             if (expanded) com.subnook.app.ui.components.CappedList(
-                sched, rowHeight = 52.dp, maxVisible = 5, dividerStart = 8.dp, key = { it.index }, unit = "笔",
-                startAt = (sum.current - sched.first().index - 1).coerceIn(0, (sched.size - 5).coerceAtLeast(0)),
-            ) { t ->
+                sched, rowHeight = 52.dp, maxVisible = 5, dividerStart = 8.dp, key = { it.index }, unit = "期",
+                startAt = (sum.current - offset - 2).coerceIn(0, (sched.size - 5).coerceAtLeast(0)),
+            ) { t0 ->
+                val t = t0.copy(index = t0.index + offset)
                 val isCur = t.index == sum.current
                 val paid = t.index < sum.current
                 val color = if (paid) cs.outline else cs.onSurface
@@ -275,7 +287,7 @@ internal fun InstallmentPlan(form: Form) {
                         .padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(if (t.index == 0) "短首期" else t.index.toString(), style = MaterialTheme.typography.labelLarge.merge(TabularNums), color = color, modifier = Modifier.width(if (full.hasShortFirstInSegment) 44.dp else 30.dp))
+                    Text("${t.index}", style = MaterialTheme.typography.labelLarge.merge(TabularNums), color = color, modifier = Modifier.width(30.dp))
                     Column(Modifier.weight(1f)) {
                         Text(t.date.format(DateTimeFormatter.ofPattern("yyyy年M月d日")), style = MaterialTheme.typography.bodyMedium, color = color)
                         if (t.interest != 0.0) Text(

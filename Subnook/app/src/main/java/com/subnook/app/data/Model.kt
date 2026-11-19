@@ -157,11 +157,8 @@ data class Subscription(
     // ---- DB v7 新增：选「其他」时用户自己填的名称（可以不填）----
     @ColumnInfo(defaultValue = "") val payMethodNote: String = "",
     @ColumnInfo(defaultValue = "") val categoryNote: String = "",
-    /** 第一笔是完整期数之外的短首期。存储的计划本金、笔数和付款记录序号均包含这一笔。 */
-    @ColumnInfo(defaultValue = "0") val instShortFirst: Boolean = false,
 ) {
     val isInstallment: Boolean get() = kind == SubKind.INSTALLMENT
-    val hasShortFirstInSegment: Boolean get() = instShortFirst && instTermOffset == 0
 
     /** 显示用的付款方式：「其他」且填了名称时显示填的名称 */
     val payMethodLabel: String

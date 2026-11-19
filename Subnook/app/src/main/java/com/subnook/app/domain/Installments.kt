@@ -25,13 +25,13 @@ object Installments {
     data class Term(val index: Int, val date: LocalDate, val payment: Double, val principal: Double, val interest: Double)
 
     data class Summary(
-        /** 下次要还的完整期序号。0 表示短首期，已还清为 total + 1。 */
+        /** 下次要还的是第几期（1..total；已还清时为 total + 1） */
         val current: Int,
         val total: Int,
         val currentAmount: Double,
         /** 本金 + 手续费 / 利息合计 */
         val totalPayment: Double,
-        /** 手续费 / 利息合计 */
+        /** 手续费 / 利息合计（填了首期金额时，按首期金额算出的差额也算在这里） */
         val totalInterest: Double,
         /** 还没还的期数和金额（含当前期） */
         val remainingTerms: Int,
@@ -39,8 +39,7 @@ object Installments {
         val endDate: LocalDate,
     ) {
         val finished: Boolean get() = current > total
-        val paidTerms: Int get() = (current - 1).coerceIn(0, total)
-        val currentLabel: String get() = if (current == 0) "短首期" else "第 ${current}/${total} 期"
+        val paidTerms: Int get() = (current - 1).coerceAtMost(total)
     }
 
     /** 每期利率（小数）：年利率按周期长度折算，每月 = 年利率 / 12 */
@@ -57,7 +56,7 @@ object Installments {
     /**
      * 计算每期还款额。
      * @param ratePercent 手续费方式是每期费率（%），等额本息 / 等额本金是年利率（%）
-     * @param firstOverride 账单上的首期实还金额。免息多期按首期实还本金重分余款；有费率时用于校准首期费用。
+     * @param firstOverride 首期金额（账单上的实际数，和计算结果有出入时用），只替换第 1 期
      */
     fun parts(
         principal: Double,
@@ -74,23 +73,11 @@ object Installments {
         val p = BigDecimal.valueOf(principal).multiply(scale).setScale(0, RoundingMode.HALF_UP).toLong()
         val rate = BigDecimal.valueOf(ratePercent.coerceAtLeast(0.0)).divide(BigDecimal(100))
         val n = terms.toLong()
-        val firstPayment = firstOverride?.let {
-            BigDecimal.valueOf(it).multiply(scale).setScale(0, RoundingMode.HALF_UP).toLong()
-        }
 
-        val interestFree = method == InstallmentMethod.INTEREST_FREE || rate.signum() == 0
-        val firstPrincipal = if (firstPayment != null && interestFree && terms > 1) {
-            firstPayment.coerceIn(0L, p)
-        } else {
-            p / n + p % n
-        }
-
-        fun principalOf(i: Int): Long {
-            if (i == 0) return firstPrincipal
-            val remaining = p - firstPrincipal
-            // 首期已确定，余款的零头放在下一期。
-            return remaining / (n - 1) + if (i == 1) remaining % (n - 1) else 0L
-        }
+        // 每期本金：平均分，除不尽的零头放在首期
+        val base = p / n
+        val rem = p - base * n
+        fun principalOf(i: Int) = base + if (i == 0) rem else 0L
 
         val minor: List<Pair<Long, Long>> = when (method) {
             InstallmentMethod.INTEREST_FREE -> List(terms) { principalOf(it) to 0L }
@@ -130,8 +117,9 @@ object Installments {
         }
         val unit = scale.toDouble()
         return minor.mapIndexed { i, (pr, int) ->
-            if (i == 0 && firstPayment != null) {
-                Part(firstPayment / unit, pr / unit, (firstPayment - pr) / unit)
+            if (i == 0 && firstOverride != null) {
+                val pay = BigDecimal.valueOf(firstOverride).multiply(scale).setScale(0, RoundingMode.HALF_UP).toLong()
+                Part(pay / unit, pr / unit, (pay - pr) / unit)
             } else {
                 Part((pr + int) / unit, pr / unit, int / unit)
             }
@@ -157,19 +145,10 @@ object Installments {
 
     private fun roundHalfUp(x: Double): Long = BigDecimal(x).setScale(0, RoundingMode.HALF_UP).toLong()
 
-    fun parts(sub: Subscription): List<Part> {
-        val decimals = Currencies.decimals(sub.currency)
-        if (sub.hasShortFirstInSegment && sub.instTerms > 1 && sub.instFirstAmount != null) {
-            val short = round(sub.instFirstAmount, sub.currency)
-            val regular = parts(
-                round(sub.instPrincipal - short, sub.currency), sub.instTerms - 1, sub.instRate,
-                sub.instMethod, sub.cycleCount, sub.cycleUnit, decimals,
-            )
-            return listOf(Part(short, short, 0.0)) + regular
-        }
-        return parts(sub.instPrincipal, sub.instTerms, sub.instRate, sub.instMethod,
-            sub.cycleCount, sub.cycleUnit, decimals, sub.instFirstAmount)
-    }
+    fun parts(sub: Subscription): List<Part> = parts(
+        sub.instPrincipal, sub.instTerms, sub.instRate, sub.instMethod,
+        sub.cycleCount, sub.cycleUnit, Currencies.decimals(sub.currency), sub.instFirstAmount,
+    )
 
     fun startDate(sub: Subscription): LocalDate = LocalDate.ofEpochDay(sub.instStartDay)
 
@@ -200,7 +179,7 @@ object Installments {
     }
 
     fun schedule(sub: Subscription): List<Term> = parts(sub).mapIndexed { i, p ->
-        Term(countedTerm(sub, sub.instTermOffset + i + 1), termDate(sub, i + 1), p.payment, p.principal, p.interest)
+        Term(i + 1, termDate(sub, i + 1), p.payment, p.principal, p.interest)
     }
 
     /**
@@ -209,7 +188,7 @@ object Installments {
      */
     fun summary(sub: Subscription): Summary {
         val offset = sub.instTermOffset
-        val total = countedTerm(sub, offset + sub.instTerms)
+        val total = offset + sub.instTerms
         if (isPaidOff(sub)) {
             return Summary(
                 current = total + 1, total = total, currentAmount = 0.0,
@@ -224,23 +203,19 @@ object Installments {
         val totalPay = sub.instPaidBefore + ps.sumOf { it.payment }
         val remaining = ps.drop(cur - 1)
         return Summary(
-            current = countedTerm(sub, offset + cur),
+            current = offset + cur,
             total = total,
             currentAmount = ps.getOrNull(cur - 1)?.payment ?: 0.0,
             totalPayment = round(totalPay, sub.currency),
             totalInterest = round(totalPay - sub.instPrincipalBefore - sub.instPrincipal, sub.currency),
-            remainingTerms = remaining.size - if (sub.hasShortFirstInSegment && cur == 1) 1 else 0,
+            remainingTerms = remaining.size,
             remainingAmount = round(remaining.sumOf { it.payment }, sub.currency),
             endDate = endDate(sub),
         )
     }
 
-    /** 付款记录沿用从 1 开始的实际账单序号，切换首期模式时历史记录也能正确显示。 */
+    /** 显示用的期数：某个还款日是整笔分期的第几期 */
     fun displayTerm(sub: Subscription, date: LocalDate): Int = sub.instTermOffset + termIndex(sub, date)
-
-    fun countedTerm(sub: Subscription, bill: Int): Int = if (sub.instShortFirst) bill - 1 else bill
-
-    fun termLabel(index: Int): String = if (index == 0) "短首期" else "第 ${index} 期"
 
     fun isPaidOff(sub: Subscription): Boolean = sub.isInstallment && sub.instPaidOffDay != null
 
@@ -272,7 +247,6 @@ object Installments {
                 nextBillingDay = s.nextBillingDay, anchorDay = s.anchorDay, active = s.active,
                 instPrincipal = s.instPrincipal, instTerms = s.instTerms, instRate = s.instRate,
                 instMethod = s.instMethod, instFirstAmount = s.instFirstAmount, instStartDay = s.instStartDay,
-                instShortFirst = s.instShortFirst,
                 instTermOffset = s.instTermOffset, instPaidBefore = s.instPaidBefore,
                 instPrincipalBefore = s.instPrincipalBefore, instPaidOffDay = s.instPaidOffDay,
                 remindedForDay = null, overdueNotifiedDay = null,
@@ -332,18 +306,7 @@ object Installments {
         }
         require(canPartialPrepay(sub.instMethod)) { "这种分期只能一次还清" }
         val newPrincipal = round(r - amount, sub.currency)
-        // 短首期尚未到期时，提前还款先冲这笔实额；结清之后才重排完整的分期。
-        val pendingShort = sub.hasShortFirstInSegment && cur == 1
-        if (pendingShort && amount < left.first().payment) {
-            val short = round(left.first().payment - amount, sub.currency)
-            val out = normalize(base.copy(
-                instPrincipal = newPrincipal, instFirstAmount = short,
-                instPrincipalBefore = round(sub.instPrincipalBefore + amount, sub.currency),
-            ))
-            return PrepayResult(out, false, 0.0, short, sub.instTerms - 1, endDate(out))
-        }
-        val nextTerm = if (pendingShort) cur + 1 else cur
-        val remainingTerms = sub.instTerms - nextTerm + 1
+        val remainingTerms = left.size
         val decimals = Currencies.decimals(sub.currency)
         fun newParts(m: Int) = parts(newPrincipal, m, sub.instRate, sub.instMethod, sub.cycleCount, sub.cycleUnit, decimals)
         val terms = when (mode) {
@@ -354,9 +317,9 @@ object Installments {
             }
             else -> remainingTerms
         }
-        val start = termDate(sub, nextTerm)
+        val start = termDate(sub, cur)
         val out = base.copy(
-            instTermOffset = sub.instTermOffset + (nextTerm - 1),
+            instTermOffset = sub.instTermOffset + (cur - 1),
             instPrincipalBefore = round(sub.instPrincipalBefore + paid.sumOf { it.principal } + amount, sub.currency),
             instPrincipal = newPrincipal,
             instTerms = terms,
@@ -403,7 +366,7 @@ object Installments {
         return when {
             isPaidOff(sub) -> "已提前还清 · 共 ${s.total} 期"
             s.finished -> "已还清 · 共 ${s.total} 期"
-            else -> s.currentLabel
+            else -> "第 ${s.current}/${s.total} 期"
         }
     }
 }

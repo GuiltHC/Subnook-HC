@@ -132,7 +132,6 @@ internal class Form {
     var instRate by mutableStateOf("")
     var instMethod by mutableStateOf(InstallmentMethod.INTEREST_FREE)
     var instFirst by mutableStateOf("")
-    var shortFirst by mutableStateOf(false)
     /** 下次还款是第几期 */
     var instCurrent by mutableStateOf("1")
     val isInstallment get() = kind == SubKind.INSTALLMENT
@@ -168,14 +167,10 @@ internal class Form {
         kind = s.kind
         balance = if (s.balance == 0.0) "" else s.balance.plain(); balanceTouched = false
         if (s.isInstallment) {
-            shortFirst = s.hasShortFirstInSegment
-            instPrincipal = if (shortFirst) {
-                (s.instPrincipal.toBigDecimal() - (s.instFirstAmount ?: 0.0).toBigDecimal()).stripTrailingZeros().toPlainString()
-            } else s.instPrincipal.plain()
-            instTerms = formTerm(s, s.instTerms)
+            instPrincipal = s.instPrincipal.plain(); instTerms = s.instTerms.toString()
             instRate = if (s.instRate == 0.0) "" else s.instRate.plain(); instMethod = s.instMethod
             instFirst = s.instFirstAmount?.plain().orEmpty()
-            instCurrent = formTerm(s, Installments.currentTerm(s))
+            instCurrent = Installments.currentTerm(s).toString()
             // 已还清的分期是自动停用的；如果用户把期数改回去，应该重新启用
             if (Installments.isFinished(s) && !Installments.isPaidOff(s)) active = true
         }
@@ -189,33 +184,19 @@ internal class Form {
         val o = original ?: return
         if (o == s) return
         if (next == LocalDate.ofEpochDay(o.nextBillingDay)) next = LocalDate.ofEpochDay(s.nextBillingDay)
-        if (s.isInstallment && o.isInstallment && instCurrent == formTerm(o, Installments.currentTerm(o))) {
-            instCurrent = formTerm(s, Installments.currentTerm(s))
+        if (s.isInstallment && o.isInstallment && instCurrent == Installments.currentTerm(o).toString()) {
+            instCurrent = Installments.currentTerm(s).toString()
         }
         if (!balanceTouched) balance = if (s.balance == 0.0) "" else s.balance.plain()
         original = s
     }
 
     private fun Double.plain() = toBigDecimal().stripTrailingZeros().toPlainString()
-    private fun Double.currencyAmount() = toBigDecimal().setScale(Currencies.decimals(currency), java.math.RoundingMode.HALF_UP)
     private fun String.num() = replace(",", "").trim().toDoubleOrNull()
 
     fun principalValue() = instPrincipal.num()?.takeIf { it > 0 }
     fun termsValue() = instTerms.toIntOrNull()?.takeIf { it in 1..600 }
-    private fun formTerm(s: Subscription, bill: Int) = (if (s.hasShortFirstInSegment) bill - 1 else bill).toString()
-
-    fun chooseShortFirst(enabled: Boolean) {
-        if (shortFirst == enabled) return
-        val current = instCurrent.toIntOrNull()
-        if (current != null && (original != null || current == 0)) {
-            instCurrent = (if (enabled) (current - 1).coerceAtLeast(0) else current + 1).toString()
-        }
-        shortFirst = enabled
-    }
-
-    fun currentValue() = instCurrent.toIntOrNull()?.takeIf { c ->
-        c >= (if (shortFirst) 0 else 1) && c <= (termsValue() ?: 0) + 1
-    }
+    fun currentValue() = instCurrent.toIntOrNull()?.takeIf { c -> c >= 1 && c <= (termsValue() ?: 0) + 1 }
     fun rateValue() = if (instMethod.rateLabel == null || instRate.isBlank()) 0.0 else instRate.num()?.takeIf { it >= 0 }
 
     fun applyPreset(key: String, hasImage: Boolean) {
@@ -249,13 +230,6 @@ internal class Form {
             val current = currentValue() ?: return null
             val rate = rateValue() ?: return null
             val first = if (instFirst.isBlank()) null else (instFirst.num()?.takeIf { it > 0 } ?: return null)
-            val extraBill = if (shortFirst) 1 else 0
-            val storedPrincipal = if (shortFirst) {
-                val short = first?.currencyAmount() ?: return null
-                val regular = principal.currencyAmount()
-                if (regular.signum() <= 0 || short.signum() <= 0) return null
-                (regular + short).toDouble()
-            } else principal
             return Installments.normalize(
                 base.copy(
                     name = name.trim(), iconType = iconType, iconValue = iconValue, color = color,
@@ -267,11 +241,9 @@ internal class Form {
                     remindedForDay = o?.remindedForDay,
                     overdueNotifiedDay = if (dateChanged) null else o?.overdueNotifiedDay,
                     kind = SubKind.INSTALLMENT,
-                    instPrincipal = storedPrincipal,
-                    instTerms = terms + extraBill, instRate = rate, instMethod = instMethod,
-                    instShortFirst = shortFirst || (o?.instShortFirst == true && o.instTermOffset > 0),
-                    instFirstAmount = if (shortFirst) first?.currencyAmount()?.toDouble() else first,
-                    instStartDay = Installments.startFrom(next, current + extraBill, cnt, cycleUnit, anchor).toEpochDay(),
+                    instPrincipal = principal, instTerms = terms, instRate = rate, instMethod = instMethod,
+                    instFirstAmount = first,
+                    instStartDay = Installments.startFrom(next, current, cnt, cycleUnit, anchor).toEpochDay(),
                     balance = bal,
                     payMethodNote = payMethodNote.trim(), categoryNote = categoryNote.trim(),
                 ),
@@ -302,7 +274,7 @@ private val FormSaver = androidx.compose.runtime.saveable.listSaver<Form, Any?>(
             f.next.toEpochDay(), f.payMethod.name, f.autoRenew, f.category.name, f.remind, f.remindDays, f.active,
             f.note, f.presetKey, f.loaded,
             f.kind.name, f.instPrincipal, f.instTerms, f.instRate, f.instMethod.name, f.instFirst, f.instCurrent,
-            f.balance, f.balanceTouched, f.payMethodNote, f.categoryNote, f.shortFirst,
+            f.balance, f.balanceTouched, f.payMethodNote, f.categoryNote,
         )
     },
     restore = { l ->
@@ -318,7 +290,6 @@ private val FormSaver = androidx.compose.runtime.saveable.listSaver<Form, Any?>(
             instFirst = l[23] as String; instCurrent = l[24] as String
             balance = l[25] as String; balanceTouched = l[26] as Boolean
             payMethodNote = l[27] as String; categoryNote = l[28] as String
-            shortFirst = l.getOrNull(29) as? Boolean ?: false
         }
     },
 )
@@ -648,9 +619,7 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                                         val o = form.original
                                         d.format(DateTimeFormatter.ofPattern("yyyy年M月d日")) + when {
                                             p.prepay -> ""
-                                            o != null && o.isInstallment -> " · " + Installments.termLabel(
-                                                Installments.countedTerm(o, p.term ?: Installments.displayTerm(o, d)),
-                                            )
+                                            o != null && o.isInstallment -> " · 第 ${p.term ?: Installments.displayTerm(o, d)} 期"
                                             else -> ""
                                         } + if (p.balanceUsed > 0) " · 余额扣 ${Currencies.formatList(p.balanceUsed, p.currency)}" else ""
                                     },
