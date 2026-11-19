@@ -85,9 +85,9 @@ class MainActivity : ComponentActivity() {
 
 
 private val tabs = listOf(
-    NavItem("home", "订阅", Icons.Outlined.Layers, Icons.Rounded.Layers),
-    NavItem("calendar", "日历", Icons.Outlined.CalendarMonth, Icons.Rounded.CalendarMonth),
-    NavItem("settings", "设置", Icons.Outlined.Settings, Icons.Rounded.Settings),
+    NavItem("home", str(R.string.nav_subscriptions), Icons.Outlined.Layers, Icons.Rounded.Layers),
+    NavItem("calendar", str(R.string.nav_calendar), Icons.Outlined.CalendarMonth, Icons.Rounded.CalendarMonth),
+    NavItem("settings", str(R.string.nav_settings), Icons.Outlined.Settings, Icons.Rounded.Settings),
 )
 
 object Routes {

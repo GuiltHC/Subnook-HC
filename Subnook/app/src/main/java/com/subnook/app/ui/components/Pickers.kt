@@ -1,5 +1,7 @@
 package com.subnook.app.ui.components
 
+import com.subnook.app.R
+import com.subnook.app.str
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -59,14 +61,14 @@ fun CurrencyPickerDialog(current: String, onDismiss: () -> Unit, onPick: (String
     var q by remember { mutableStateOf("") }
     AppAlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("取消") } },
-        title = { Text("选择币种") },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(str(R.string.common_cancel)) } },
+        title = { Text(str(R.string.picker_currency_title)) },
         text = {
             Column {
-                OutlinedTextField(q, { q = it }, label = { Text("搜索") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(q, { q = it }, label = { Text(str(R.string.picker_search)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
                 val list = Currencies.list.filter {
-                    q.isBlank() || it.code.contains(q, true) || it.name.contains(q)
+                    q.isBlank() || it.code.contains(q, true) || it.name.contains(q, true)
                 }
                 LazyColumn(Modifier.heightIn(max = 380.dp)) {
                     items(list, key = { it.code }) { c ->
@@ -123,17 +125,17 @@ fun IconPickerSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
             PrimaryTabRow(selectedTabIndex = tab) {
-                listOf("品牌图标", "设计图标", "文字/相册").forEachIndexed { i, t ->
+                listOf(str(R.string.icon_tab_brand), str(R.string.icon_tab_design), str(R.string.icon_tab_text)).forEachIndexed { i, t ->
                     Tab(selected = tab == i, onClick = { tab = i }, text = { Text(t) })
                 }
             }
             Spacer(Modifier.height(12.dp))
             when (tab) {
                 0 -> {
-                    OutlinedTextField(q, { q = it }, label = { Text("搜索品牌") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(q, { q = it }, label = { Text(str(R.string.picker_search_brand)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
                     val list = PresetCatalog.all.filter {
-                        IconFiles.presetRes(context, it.key) != 0 && (q.isBlank() || it.name.contains(q, true) || it.key.contains(q, true))
+                        IconFiles.presetRes(context, it.key) != 0 && (q.isBlank() || it.name.contains(q, true) || it.rawName.contains(q, true) || it.key.contains(q, true))
                     }
                     LazyVerticalGrid(GridCells.Adaptive(68.dp), Modifier.height(420.dp)) {
                         items(list, key = { it.key }) { p ->
@@ -148,7 +150,7 @@ fun IconPickerSheet(
                     }
                 }
                 1 -> {
-                    Text("背景颜色", style = MaterialTheme.typography.labelLarge)
+                    Text(str(R.string.picker_bg_color), style = MaterialTheme.typography.labelLarge)
                     Spacer(Modifier.height(6.dp))
                     ColorRow(color, onColor)
                     Spacer(Modifier.height(12.dp))
@@ -161,20 +163,20 @@ fun IconPickerSheet(
                     }
                 }
                 else -> {
-                    Text("文字图标", style = MaterialTheme.typography.labelLarge)
+                    Text(str(R.string.picker_text_icon), style = MaterialTheme.typography.labelLarge)
                     Spacer(Modifier.height(6.dp))
                     ColorRow(color, onColor)
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        SubIcon(IconType.TEXT, "", color, name.ifBlank { "订" }, size = 56.dp)
+                        SubIcon(IconType.TEXT, "", color, name.ifBlank { str(R.string.common_icon_placeholder) }, size = 56.dp)
                         Spacer(Modifier.width(12.dp))
-                        TextButton(onClick = { onPick(IconType.TEXT, "") }) { Text("使用文字图标") }
+                        TextButton(onClick = { onPick(IconType.TEXT, "") }) { Text(str(R.string.picker_use_text_icon)) }
                     }
                     Spacer(Modifier.height(20.dp))
                     TextButton(onClick = onPickPhoto) {
                         Icon(Icons.Rounded.PhotoLibrary, null)
                         Spacer(Modifier.width(8.dp))
-                        Text("从相册选择图片（可裁剪）")
+                        Text(str(R.string.picker_from_gallery))
                     }
                     Spacer(Modifier.height(120.dp))
                 }

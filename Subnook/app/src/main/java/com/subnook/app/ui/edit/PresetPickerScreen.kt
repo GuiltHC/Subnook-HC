@@ -1,5 +1,7 @@
 package com.subnook.app.ui.edit
 
+import com.subnook.app.R
+import com.subnook.app.str
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -56,7 +58,7 @@ import com.subnook.app.ui.components.SubIcon
 @Composable
 fun PresetPickerScreen(onBack: () -> Unit, onPick: (key: String?, query: String) -> Unit) {
     var q by remember { mutableStateOf("") }
-    val filtered = PresetCatalog.all.filter { q.isBlank() || it.name.contains(q, true) || it.key.contains(q, true) }
+    val filtered = PresetCatalog.all.filter { q.isBlank() || it.name.contains(q, true) || it.rawName.contains(q, true) || it.key.contains(q, true) }
     val grouped = Category.entries.mapNotNull { c -> filtered.filter { it.category == c }.takeIf { it.isNotEmpty() }?.let { c to it } }
 
     // 每个分区标题在网格里的位置：第 0 项是「自定义订阅」卡片，之后每个分区 = 1 个标题 + N 个图标
@@ -83,15 +85,15 @@ fun PresetPickerScreen(onBack: () -> Unit, onPick: (key: String?, query: String)
     val extra = com.subnook.app.ui.theme.LocalExtra.current
     Scaffold(containerColor = cs.background, topBar = {
         TopAppBar(
-            title = { Text("添加订阅", style = MaterialTheme.typography.titleLarge) },
-            navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") } },
+            title = { Text(str(R.string.common_add_subscription), style = MaterialTheme.typography.titleLarge) },
+            navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, str(R.string.common_back)) } },
             colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = cs.background, scrolledContainerColor = cs.background),
         )
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
             androidx.compose.material3.TextField(
                 q, { q = it }, leadingIcon = { Icon(Icons.Rounded.Search, null) },
-                placeholder = { Text("搜索 Netflix、爱奇艺、紫卡…") }, singleLine = true,
+                placeholder = { Text(str(R.string.preset_search_hint)) }, singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 colors = androidx.compose.material3.TextFieldDefaults.colors(
                     focusedContainerColor = cs.surfaceContainerLowest, unfocusedContainerColor = cs.surfaceContainerLowest,
@@ -147,7 +149,7 @@ fun PresetPickerScreen(onBack: () -> Unit, onPick: (key: String?, query: String)
                             contentAlignment = Alignment.Center,
                         ) { Icon(Icons.Rounded.Add, null, Modifier.size(26.dp), tint = androidx.compose.ui.graphics.Color.White) }
                         Spacer(Modifier.size(14.dp))
-                        Text(if (q.isBlank()) "自定义订阅" else "自定义「$q」", style = MaterialTheme.typography.titleMedium, color = androidx.compose.ui.graphics.Color.White)
+                        Text(if (q.isBlank()) str(R.string.preset_custom) else str(R.string.preset_custom_named, q), style = MaterialTheme.typography.titleMedium, color = androidx.compose.ui.graphics.Color.White)
                     }
                 }
                 grouped.forEach { (cat, list) ->

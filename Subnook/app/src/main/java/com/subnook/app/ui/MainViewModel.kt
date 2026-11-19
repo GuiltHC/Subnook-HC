@@ -1,5 +1,8 @@
 package com.subnook.app.ui
 
+import com.subnook.app.R
+import com.subnook.app.str
+import com.subnook.app.plural
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
@@ -59,7 +62,7 @@ data class UiState(
     }
 
     private companion object {
-        val nameCollator: java.text.Collator = java.text.Collator.getInstance(java.util.Locale.CHINA).apply {
+        val nameCollator: java.text.Collator = java.text.Collator.getInstance(com.subnook.app.uiLocale()).apply {
             strength = java.text.Collator.SECONDARY
         }
     }
@@ -97,12 +100,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun delete(sub: Subscription) = viewModelScope.launch {
         a.dao.delete(sub)
         a.notifier.cancel(sub.id)
-        toast("已删除「${sub.name}」")
+        toast(str(R.string.toast_deleted, sub.name))
     }
 
     fun deletePayment(p: PaymentRecord) = viewModelScope.launch {
         a.processor.deletePayment(p)
-        if (p.balanceUsed > 0) toast("已删除记录，${com.subnook.app.data.Currencies.formatList(p.balanceUsed, p.currency)} 已退回余额")
+        if (p.balanceUsed > 0) toast(str(R.string.toast_record_deleted_refund, com.subnook.app.data.Currencies.formatList(p.balanceUsed, p.currency)))
     }
 
     // ---- 自定义分类 ----
@@ -118,26 +121,26 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         a.processor.topUp(sub.id, amount)
         // 卡在余额不足的自动扣款：充值后马上再处理一次，够了就自动补扣
         Scheduler.runAll(a)
-        toast("已充值 ${com.subnook.app.data.Currencies.formatList(amount, sub.currency)}")
+        toast(str(R.string.toast_topped_up, com.subnook.app.data.Currencies.formatList(amount, sub.currency)))
     }
 
     fun deleteTopUp(t: com.subnook.app.data.TopUp) = viewModelScope.launch {
         a.processor.deleteTopUp(t)
-        toast("已删除充值记录，余额已减回")
+        toast(str(R.string.toast_topup_deleted))
     }
 
     fun confirmPaid(sub: Subscription) = viewModelScope.launch {
         val short = a.processor.confirmPaid(sub.id)
         if (short > 0.005) {
-            toast("余额不够，已扣完余额；还差 ${com.subnook.app.data.Currencies.formatList(short, sub.currency)} 按其他方式付款")
+            toast(str(R.string.toast_balance_short, com.subnook.app.data.Currencies.formatList(short, sub.currency)))
         } else if (sub.isInstallment) {
             val after = a.dao.get(sub.id)
             toast(
-                if (after != null && com.subnook.app.domain.Installments.isFinished(after)) "已还完最后一期，「${sub.name}」已还清"
-                else "已记录第 ${com.subnook.app.domain.Installments.summary(sub).current} 期还款",
+                if (after != null && com.subnook.app.domain.Installments.isFinished(after)) str(R.string.toast_last_term_paid, sub.name)
+                else str(R.string.toast_term_recorded, com.subnook.app.domain.Installments.summary(sub).current),
             )
         } else {
-            toast("已记录付款，下次账单日已更新")
+            toast(str(R.string.toast_payment_recorded))
         }
     }
 
@@ -147,44 +150,43 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 .onSuccess { r ->
                     toast(
                         when {
-                            r == null -> "这笔分期已经还清了"
-                            r.paidOff -> "已提前还清「${sub.name}」"
-                            else -> "已记录提前还款，之后每期 " +
-                                com.subnook.app.data.Currencies.formatList(r.newPayment, sub.currency) + "，还剩 ${r.newTerms} 期"
+                            r == null -> str(R.string.common_installment_already_paid)
+                            r.paidOff -> str(R.string.toast_paid_off_early, sub.name)
+                            else -> plural(R.plurals.toast_prepay_recorded, r.newTerms, com.subnook.app.data.Currencies.formatList(r.newPayment, sub.currency), r.newTerms)
                         },
                     )
                     Scheduler.runAll(a)
                     onDone()
                 }
-                .onFailure { toast("提前还款失败：${it.message}") }
+                .onFailure { toast(str(R.string.toast_prepay_failed, it.message)) }
         }
 
     /** 删除提前还款记录并恢复分期。[onRestored] 在恢复成功后调用（编辑页据此关闭，避免旧表单覆盖恢复的数据） */
     fun undoPrepay(p: PaymentRecord, onRestored: () -> Unit) = viewModelScope.launch {
         val r = runCatching { a.processor.undoPrepay(p.id) }.getOrElse {
-            toast("撤销失败：${it.message}")
+            toast(str(R.string.toast_undo_failed, it.message))
             return@launch
         }
         when (r) {
             com.subnook.app.domain.RenewalProcessor.UndoResult.Restored -> {
-                toast("已撤销提前还款，分期已恢复")
+                toast(str(R.string.toast_prepay_undone))
                 Scheduler.runAll(a)
                 onRestored()
             }
             is com.subnook.app.domain.RenewalProcessor.UndoResult.LaterPayments ->
-                toast("这笔提前还款之后还有 ${r.count} 条付款记录，请先删除它们再撤销")
+                toast(plural(R.plurals.toast_undo_blocked, r.count, r.count))
             com.subnook.app.domain.RenewalProcessor.UndoResult.NoSnapshot -> {
                 // 旧调试版本记的提前还款没有快照：只删记录
                 a.processor.undoPrepay(p.id, deleteWithoutSnapshot = true)
-                toast("这条记录没有还款前的数据，只删除了记录，分期需要手动改回")
+                toast(str(R.string.toast_undo_no_snapshot))
             }
-            com.subnook.app.domain.RenewalProcessor.UndoResult.NotFound -> toast("记录已不存在")
+            com.subnook.app.domain.RenewalProcessor.UndoResult.NotFound -> toast(str(R.string.toast_record_missing))
         }
     }
 
     fun skip(sub: Subscription) = viewModelScope.launch {
         a.processor.skip(sub.id)
-        toast("已跳过本期")
+        toast(str(R.string.toast_skipped))
     }
 
     fun setPeriod(p: SummaryPeriod) = viewModelScope.launch { a.settings.setPeriod(p) }
@@ -211,23 +213,23 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun refreshRates() = viewModelScope.launch {
         a.rates.refresh()
-            .onSuccess { toast("汇率已更新") }
-            .onFailure { toast("汇率更新失败：${it.message ?: it.javaClass.simpleName}") }
+            .onSuccess { toast(str(R.string.toast_rates_updated)) }
+            .onFailure { toast(str(R.string.toast_rates_failed, it.message ?: it.javaClass.simpleName)) }
     }
 
     fun export(uri: Uri) = viewModelScope.launch {
         runCatching { a.backup.export(uri) }
-            .onSuccess { toast("已导出 $it 个订阅") }
-            .onFailure { toast("导出失败：${it.message}") }
+            .onSuccess { toast(plural(R.plurals.toast_exported, it, it)) }
+            .onFailure { toast(str(R.string.toast_export_failed, it.message)) }
     }
 
     fun import(uri: Uri) = viewModelScope.launch {
         runCatching { a.backup.import(uri) }
             .onSuccess {
                 Scheduler.runAll(a)
-                toast("已导入 ${it.subs} 个订阅、${it.payments} 条付款记录")
+                toast(str(R.string.toast_imported, it.subs, it.payments))
             }
-            .onFailure { toast("导入失败：${it.message}") }
+            .onFailure { toast(str(R.string.toast_import_failed, it.message)) }
     }
 
     // ---- WebDAV 云端备份 ----
@@ -237,12 +239,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** 测试连接成功才保存；[password] 为 null 表示不改密码 */
     suspend fun saveWebDav(url: String, user: String, password: String?): Result<Unit> =
         runCatching { a.cloud.saveAccount(url, user, password) }
-            .onSuccess { toast("连接成功，已保存") }
+            .onSuccess { toast(str(R.string.toast_webdav_saved)) }
 
     fun clearWebDav() = viewModelScope.launch {
         a.webDav.clear()
         com.subnook.app.data.CloudBackup.schedule(a, false)
-        toast("已移除 WebDAV 账号")
+        toast(str(R.string.toast_webdav_removed))
     }
 
     fun setAutoBackup(on: Boolean) = viewModelScope.launch {
@@ -253,8 +255,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** 在 ViewModel 里跑，离开设置页也不会中断上传 */
     fun cloudBackup(onDone: () -> Unit = {}) = viewModelScope.launch {
         runCatching { a.cloud.backup() }
-            .onSuccess { toast("已备份到云端") }
-            .onFailure { toast("云端备份失败：${it.message}") }
+            .onSuccess { toast(str(R.string.toast_cloud_backed_up)) }
+            .onFailure { toast(str(R.string.toast_cloud_backup_failed, it.message)) }
         onDone()
     }
 
@@ -264,9 +266,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         runCatching { a.cloud.restore(name) }
             .onSuccess {
                 Scheduler.runAll(a)
-                toast("已从云端恢复 ${it.subs} 个项目、${it.payments} 条付款记录")
+                toast(str(R.string.toast_cloud_restored, it.subs, it.payments))
             }
-            .onFailure { toast("恢复失败：${it.message}") }
+            .onFailure { toast(str(R.string.toast_restore_failed, it.message)) }
     }
 
     fun onResume() = viewModelScope.launch {

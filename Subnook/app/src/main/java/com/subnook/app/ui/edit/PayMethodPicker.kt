@@ -1,5 +1,7 @@
 package com.subnook.app.ui.edit
 
+import com.subnook.app.R
+import com.subnook.app.str
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -108,7 +110,7 @@ internal fun PayMethodPicker(
                     }
                     hadFocus = f.isFocused
                 },
-                label = { Text("付款方式名称（可不填）") },
+                label = { Text(str(R.string.pay_method_name_optional)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
@@ -122,16 +124,16 @@ internal fun PayMethodPicker(
     }
 
     askDlg?.let { name ->
-        AddCategoryDialog(name, what = "付款方式") { add -> if (add) onAddCustom(name); onAsked(name); askDlg = null }
+        AddCategoryDialog(name, what = str(R.string.add_what_pay_method)) { add -> if (add) onAddCustom(name); onAsked(name); askDlg = null }
     }
     removeDlg?.let { name ->
         AppAlertDialog(
             onDismissRequest = { removeDlg = null },
-            text = { DialogMessage("删除付款方式「$name」？") },
+            text = { DialogMessage(str(R.string.pay_method_delete_q, name)) },
             confirmButton = {
-                TextButton(onClick = { onRemoveCustom(name); removeDlg = null }) { Text("删除", color = MaterialTheme.colorScheme.error) }
+                TextButton(onClick = { onRemoveCustom(name); removeDlg = null }) { Text(str(R.string.common_delete), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { removeDlg = null }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { removeDlg = null }) { Text(str(R.string.common_cancel)) } },
         )
     }
 }

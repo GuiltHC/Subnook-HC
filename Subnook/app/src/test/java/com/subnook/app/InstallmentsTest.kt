@@ -13,6 +13,8 @@ import org.junit.Test
 import java.time.LocalDate
 
 class InstallmentsTest {
+    init { TestL10n.zh() }
+
     private fun pays(principal: Double, n: Int, rate: Double, m: InstallmentMethod, decimals: Int = 2, first: Double? = null) =
         Installments.parts(principal, n, rate, m, decimals = decimals, firstOverride = first).map { it.payment }
 

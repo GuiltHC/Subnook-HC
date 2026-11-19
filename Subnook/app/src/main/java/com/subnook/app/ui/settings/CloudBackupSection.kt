@@ -1,5 +1,8 @@
 package com.subnook.app.ui.settings
 
+import com.subnook.app.R
+import com.subnook.app.str
+import com.subnook.app.dateFmt
 import com.subnook.app.ui.components.AppAlertDialog
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -67,16 +70,16 @@ internal fun CloudBackupRows(vm: MainViewModel) {
     // 接在「导出 / 导入备份」后面，同一个「备份」分组
     Divider()
     Item(
-        Icons.Rounded.Cloud, Color(0xFF0EA5E9), "云端备份（WebDAV）",
-        if (cfg.configured) "${cfg.user} · ${host(cfg.url)}" else "未设置",
+        Icons.Rounded.Cloud, Color(0xFF0EA5E9), str(R.string.cloud_title),
+        if (cfg.configured) "${cfg.user} · ${host(cfg.url)}" else str(R.string.cloud_not_set),
     ) { accountDlg = true }
     if (cfg.configured) {
         Divider()
         Item(
-            Icons.Rounded.CloudUpload, Color(0xFF14B8A6), "立即备份到云端",
+            Icons.Rounded.CloudUpload, Color(0xFF14B8A6), str(R.string.cloud_backup_now),
             when {
-                backingUp -> "正在上传…"
-                cfg.lastBackupAt > 0 -> "上次 ${time(cfg.lastBackupAt)}"
+                backingUp -> str(R.string.cloud_uploading)
+                cfg.lastBackupAt > 0 -> str(R.string.cloud_last, time(cfg.lastBackupAt))
                 else -> null
             },
         ) {
@@ -85,7 +88,7 @@ internal fun CloudBackupRows(vm: MainViewModel) {
             vm.cloudBackup { backingUp = false }
         }
         Divider()
-        Item(Icons.Rounded.CloudDownload, Color(0xFF3B82F6), "从云端恢复") { restoreDlg = true }
+        Item(Icons.Rounded.CloudDownload, Color(0xFF3B82F6), str(R.string.cloud_restore)) { restoreDlg = true }
         Divider()
         Row(
             Modifier.fillMaxWidth().clickable { vm.setAutoBackup(!cfg.autoBackup) }.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -94,9 +97,9 @@ internal fun CloudBackupRows(vm: MainViewModel) {
             IconTile(Icons.Rounded.CloudSync, Color(0xFF8B5CF6))
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text("每天自动备份", style = MaterialTheme.typography.titleSmall)
+                Text(str(R.string.cloud_daily), style = MaterialTheme.typography.titleSmall)
                 if (cfg.autoBackup && cfg.lastError.isNotBlank()) {
-                    Text("上次失败：${cfg.lastError}", style = MaterialTheme.typography.bodySmall, color = LocalExtra.current.danger)
+                    Text(str(R.string.cloud_last_error, cfg.lastError), style = MaterialTheme.typography.bodySmall, color = LocalExtra.current.danger)
                 }
             }
             Spacer(Modifier.width(10.dp))
@@ -111,7 +114,7 @@ internal fun CloudBackupRows(vm: MainViewModel) {
 private fun host(url: String) = WebDavClient.normalize(url)?.host ?: url
 
 private fun time(millis: Long) = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault())
-    .format(DateTimeFormatter.ofPattern("M月d日 HH:mm"))
+    .format(dateFmt(R.string.fmt_md_hm))
 
 @Composable
 private fun AccountDialog(vm: MainViewModel, cfg: WebDavConfig, onDismiss: () -> Unit) {
@@ -124,29 +127,29 @@ private fun AccountDialog(vm: MainViewModel, cfg: WebDavConfig, onDismiss: () ->
     val cs = MaterialTheme.colorScheme
     AppAlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
-        title = { Text("WebDAV 账号") },
+        title = { Text(str(R.string.cloud_account)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
-                    url, { url = it.trim(); error = null }, label = { Text("服务器地址") }, singleLine = true,
+                    url, { url = it.trim(); error = null }, label = { Text(str(R.string.cloud_server)) }, singleLine = true,
                     placeholder = { Text("https://dav.jianguoyun.com/dav/") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(user, { user = it; error = null }, label = { Text("账号") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(user, { user = it; error = null }, label = { Text(str(R.string.cloud_user)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(
-                    password, { password = it; error = null }, label = { Text("密码") }, singleLine = true,
-                    placeholder = { if (cfg.hasPassword) Text("已保存，不修改可留空") },
+                    password, { password = it; error = null }, label = { Text(str(R.string.cloud_password)) }, singleLine = true,
+                    placeholder = { if (cfg.hasPassword) Text(str(R.string.cloud_password_saved)) },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (url.startsWith("http://", true)) {
-                    Text("http 地址不加密", style = MaterialTheme.typography.bodySmall, color = LocalExtra.current.warning)
+                    Text(str(R.string.cloud_http_warning), style = MaterialTheme.typography.bodySmall, color = LocalExtra.current.warning)
                 }
                 error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = cs.error) }
                 if (cfg.configured) {
-                    TextButton(onClick = { vm.clearWebDav(); onDismiss() }, enabled = !busy) { Text("移除账号", color = cs.error) }
+                    TextButton(onClick = { vm.clearWebDav(); onDismiss() }, enabled = !busy) { Text(str(R.string.cloud_remove), color = cs.error) }
                 }
             }
         },
@@ -163,10 +166,10 @@ private fun AccountDialog(vm: MainViewModel, cfg: WebDavConfig, onDismiss: () ->
                     }
                 },
             ) {
-                if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("测试并保存")
+                if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text(str(R.string.cloud_test_save))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text(str(R.string.common_cancel)) } },
     )
 }
 
@@ -181,24 +184,24 @@ private fun RestoreDialog(vm: MainViewModel, onDismiss: () -> Unit) {
     }
     AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("从云端恢复") },
+        title = { Text(str(R.string.cloud_restore)) },
         text = {
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
                 val list = files
                 when {
-                    error != null -> Text("读取失败：$error", color = cs.error)
+                    error != null -> Text(str(R.string.cloud_read_failed, error), color = cs.error)
                     list == null -> Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(12.dp))
-                        Text("正在读取云端备份…")
+                        Text(str(R.string.cloud_reading))
                     }
-                    list.isEmpty() -> Text("云端还没有备份。", color = cs.onSurfaceVariant)
+                    list.isEmpty() -> Text(str(R.string.cloud_empty), color = cs.onSurfaceVariant)
                     else -> list.forEachIndexed { i, f ->
                         if (i > 0) HorizontalDivider(color = cs.outlineVariant)
                         Column(Modifier.fillMaxWidth().clickable { confirm = f }.padding(vertical = 10.dp)) {
                             Text(label(f), style = MaterialTheme.typography.titleSmall)
                             Text(
-                                (if (i == 0) "最新 · " else "") + "%.1f KB".format(f.size / 1024.0),
+                                (if (i == 0) str(R.string.cloud_latest) else "") + "%.1f KB".format(f.size / 1024.0),
                                 style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
                             )
                         }
@@ -206,19 +209,19 @@ private fun RestoreDialog(vm: MainViewModel, onDismiss: () -> Unit) {
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(str(R.string.common_close)) } },
     )
     confirm?.let { f ->
         AppAlertDialog(
             onDismissRequest = { confirm = null },
-            title = { Text("恢复这份备份？") },
-            text = { Text("${label(f)} 的备份将覆盖当前全部数据，无法撤销。") },
+            title = { Text(str(R.string.cloud_restore_q)) },
+            text = { Text(str(R.string.cloud_restore_text, label(f))) },
             confirmButton = {
                 TextButton(onClick = { vm.cloudRestore(f.name); confirm = null; onDismiss() }) {
-                    Text("覆盖恢复", color = cs.error)
+                    Text(str(R.string.cloud_restore_yes), color = cs.error)
                 }
             },
-            dismissButton = { TextButton(onClick = { confirm = null }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { confirm = null }) { Text(str(R.string.common_cancel)) } },
         )
     }
 }
@@ -228,6 +231,6 @@ private fun label(f: RemoteFile): String {
     val stamp = f.name.removePrefix(WebDavClient.PREFIX).removeSuffix(".json")
     return runCatching {
         LocalDateTime.parse(stamp, DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
-            .format(DateTimeFormatter.ofPattern("yyyy年M月d日 HH:mm"))
+            .format(dateFmt(R.string.fmt_ymd_hm))
     }.getOrElse { if (f.modified > 0) time(f.modified) else f.name }
 }

@@ -1,5 +1,7 @@
 package com.subnook.app.ui.components
 
+import com.subnook.app.R
+import com.subnook.app.str
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
@@ -71,7 +73,7 @@ object IconFiles {
         while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide) sample *= 2
         val opts = BitmapFactory.Options().apply { inSampleSize = sample; inPreferredConfig = Bitmap.Config.ARGB_8888 }
         val bmp = cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) }
-            ?: throw IllegalStateException("无法识别的图片格式", error)
+            ?: throw IllegalStateException(str(R.string.icon_bad_format), error)
         val rotation = runCatching {
             val o = cr.openInputStream(uri)?.use {
                 android.media.ExifInterface(it).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION, android.media.ExifInterface.ORIENTATION_NORMAL)
@@ -98,7 +100,7 @@ object IconFiles {
         val cropped = Bitmap.createBitmap(src, x, y, s, s)
         val scaled = Bitmap.createScaledBitmap(cropped, 256, 256, true)
         val name = "custom_${UUID.randomUUID()}.png"
-        file(context, name).outputStream().use { check(scaled.compress(Bitmap.CompressFormat.PNG, 100, it)) { "图片保存失败" } }
+        file(context, name).outputStream().use { check(scaled.compress(Bitmap.CompressFormat.PNG, 100, it)) { str(R.string.icon_save_failed) } }
         return name
     }
 

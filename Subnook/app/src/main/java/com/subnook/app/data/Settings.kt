@@ -1,5 +1,8 @@
 package com.subnook.app.data
 
+import androidx.annotation.StringRes
+import com.subnook.app.R
+import com.subnook.app.str
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -11,25 +14,44 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 
-enum class SummaryPeriod(val label: String, val unitLabel: String) {
-    WEEK("周", "每周"), MONTH("月", "每月"), YEAR("年", "每年")
+enum class SummaryPeriod(@StringRes val labelRes: Int, @StringRes val unitLabelRes: Int) {
+    WEEK(R.string.period_week, R.string.period_per_week), MONTH(R.string.period_month, R.string.period_per_month), YEAR(R.string.period_year, R.string.period_per_year);
+
+    val label: String get() = str(labelRes)
+    val unitLabel: String get() = str(unitLabelRes)
 }
 
 /**
  * 首页订阅列表排序。AMOUNT / NAME / NEXT_DATE 是旧版本就有的名字，保存在设置和备份里，不能改名。
  * [defaultAsc]：刚选中这个排序时默认的方向；[ascHint] / [descHint]：正序 / 倒序的含义说明。
  */
-enum class SortOrder(val label: String, val short: String, val defaultAsc: Boolean, val ascHint: String, val descHint: String) {
-    NEXT_DATE("下次付款日期", "日期", true, "近 → 远", "远 → 近"),
-    AMOUNT("月均金额", "金额", false, "低 → 高", "高 → 低"),
-    NAME("名称", "名称", true, "A → Z", "Z → A"),
-    CATEGORY("分类", "分类", true, "影视 → 其他", "其他 → 影视"),
-    CREATED("添加时间", "添加", false, "旧 → 新", "新 → 旧"),
+enum class SortOrder(
+    @StringRes val labelRes: Int,
+    @StringRes val shortRes: Int,
+    val defaultAsc: Boolean,
+    @StringRes val ascHintRes: Int,
+    @StringRes val descHintRes: Int,
+) {
+    NEXT_DATE(R.string.sort_next_date, R.string.sort_next_date_short, true, R.string.sort_hint_near_far, R.string.sort_hint_far_near),
+    AMOUNT(R.string.sort_amount, R.string.sort_amount_short, false, R.string.sort_hint_low_high, R.string.sort_hint_high_low),
+    NAME(R.string.sort_name, R.string.sort_name, true, R.string.sort_hint_a_z, R.string.sort_hint_z_a),
+    CATEGORY(R.string.common_category, R.string.common_category, true, R.string.sort_hint_cat_asc, R.string.sort_hint_cat_desc),
+    CREATED(R.string.sort_created, R.string.sort_created_short, false, R.string.sort_hint_old_new, R.string.sort_hint_new_old),
     /** 长按拖动排出来的顺序，没有正序 / 倒序 */
-    MANUAL("手动排序", "手动", true, "", ""),
+    MANUAL(R.string.sort_manual, R.string.sort_manual_short, true, 0, 0),
+    ;
+
+    val label: String get() = str(labelRes)
+    val short: String get() = str(shortRes)
+    val ascHint: String get() = if (ascHintRes == 0) "" else str(ascHintRes)
+    val descHint: String get() = if (descHintRes == 0) "" else str(descHintRes)
 }
 
-enum class ThemeMode(val label: String) { SYSTEM("跟随系统"), LIGHT("浅色"), DARK("深色") }
+enum class ThemeMode(@StringRes val labelRes: Int) {
+    SYSTEM(R.string.theme_system), LIGHT(R.string.theme_light), DARK(R.string.theme_dark);
+
+    val label: String get() = str(labelRes)
+}
 
 @Serializable
 data class AppSettings(

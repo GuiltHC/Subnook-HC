@@ -1,5 +1,7 @@
 package com.subnook.app.data
 
+import com.subnook.app.R
+import com.subnook.app.str
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -11,9 +13,9 @@ import java.net.URL
 
 /** 手动检查更新：读取 GitHub 最新 Release。只在用户点击「检查更新」时调用，不在启动时自动检查。 */
 object UpdateChecker {
-    const val REPO_URL = "https://github.com/capllen/Subnook"
+    const val REPO_URL = "https://github.com/GuiltHC/Subnook-HC"
     const val RELEASES_URL = "$REPO_URL/releases"
-    private const val API = "https://api.github.com/repos/capllen/Subnook/releases/latest"
+    private const val API = "https://api.github.com/repos/GuiltHC/Subnook-HC/releases/latest"
 
     data class Release(val version: String, val name: String, val notes: String, val url: String)
 
@@ -33,8 +35,8 @@ object UpdateChecker {
             conn.setRequestProperty("User-Agent", "Subnook-Android")
             val code = conn.responseCode
             if (code == 404) return@withContext Result.NoRelease
-            if (code == 403 || code == 429) error("请求太频繁，请稍后再试")
-            if (code !in 200..299) error("服务器返回 $code")
+            if (code == 403 || code == 429) error(str(R.string.update_too_many_requests))
+            if (code !in 200..299) error(str(R.string.update_server_code, code))
             val body = try {
                 conn.inputStream.bufferedReader().use { it.readText() }
             } catch (e: FileNotFoundException) {

@@ -1,5 +1,9 @@
 package com.subnook.app.ui.calendar
 
+import com.subnook.app.R
+import com.subnook.app.str
+import com.subnook.app.plural
+import com.subnook.app.dateFmt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -108,8 +112,8 @@ fun CalendarScreen(vm: MainViewModel, onOpen: (Long) -> Unit) {
         contentPadding = PaddingValues(horizontal = 16.dp),
     ) {
         item {
-            PageHeader("账单日历", subtitle = "${all.size} 笔账单") {
-                RoundIconButton(Icons.Rounded.Today, "回到今天", { monthStr = YearMonth.now().toString(); selected = today })
+            PageHeader(str(R.string.cal_title), subtitle = plural(R.plurals.cal_bills_count, all.size, all.size)) {
+                RoundIconButton(Icons.Rounded.Today, str(R.string.cal_back_to_today), { monthStr = YearMonth.now().toString(); selected = today })
             }
         }
         item {
@@ -117,20 +121,20 @@ fun CalendarScreen(vm: MainViewModel, onOpen: (Long) -> Unit) {
                 Column(Modifier.padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f).padding(start = 6.dp)) {
-                            Text(month.format(DateTimeFormatter.ofPattern("yyyy年M月")), style = MaterialTheme.typography.titleLarge)
+                            Text(month.format(dateFmt(R.string.fmt_ym)), style = MaterialTheme.typography.titleLarge)
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                "合计 ${Currencies.formatList(monthTotal, cur)}" + if (paidTotal > 0) " · 已付 ${Currencies.formatList(paidTotal, cur)}" else "",
+                                str(R.string.cal_month_total, Currencies.formatList(monthTotal, cur)) + if (paidTotal > 0) str(R.string.cal_month_paid, Currencies.formatList(paidTotal, cur)) else "",
                                 style = MaterialTheme.typography.labelMedium.merge(TabularNums), color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        RoundIconButton(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, "上个月", { monthStr = month.minusMonths(1).toString() }, size = 38.dp)
+                        RoundIconButton(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, str(R.string.cal_prev_month), { monthStr = month.minusMonths(1).toString() }, size = 38.dp)
                         Spacer(Modifier.width(8.dp))
-                        RoundIconButton(Icons.AutoMirrored.Rounded.KeyboardArrowRight, "下个月", { monthStr = month.plusMonths(1).toString() }, size = 38.dp)
+                        RoundIconButton(Icons.AutoMirrored.Rounded.KeyboardArrowRight, str(R.string.cal_next_month), { monthStr = month.plusMonths(1).toString() }, size = 38.dp)
                     }
                     Spacer(Modifier.height(14.dp))
                     Row {
-                        listOf("一", "二", "三", "四", "五", "六", "日").forEachIndexed { i, d ->
+                        str(R.string.weekdays_short).split(",").forEachIndexed { i, d ->
                             Text(
                                 d, Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium,
                                 color = if (i >= 5) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -148,10 +152,10 @@ fun CalendarScreen(vm: MainViewModel, onOpen: (Long) -> Unit) {
         }
         item {
             Row(Modifier.padding(start = 4.dp, top = 20.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(selected.format(DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.CHINA)), style = MaterialTheme.typography.titleSmall)
+                Text(selected.format(dateFmt(R.string.fmt_md_dow)), style = MaterialTheme.typography.titleSmall)
                 if (selected == today) {
                     Spacer(Modifier.width(8.dp))
-                    Pill("今天", MaterialTheme.colorScheme.primary)
+                    Pill(str(R.string.common_today), MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -160,7 +164,7 @@ fun CalendarScreen(vm: MainViewModel, onOpen: (Long) -> Unit) {
             item {
                 SoftCard(Modifier.fillMaxWidth()) {
                     Text(
-                        "这天没有账单", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        str(R.string.cal_no_bills), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.fillMaxWidth().padding(22.dp), textAlign = TextAlign.Center,
                     )
                 }
@@ -175,9 +179,9 @@ fun CalendarScreen(vm: MainViewModel, onOpen: (Long) -> Unit) {
                         Text(e.sub.name, style = MaterialTheme.typography.titleSmall)
                         Spacer(Modifier.height(4.dp))
                         when (e.kind) {
-                            Kind.PAID -> Pill("已付款", extra.success)
-                            Kind.OVERDUE -> Pill("逾期未确认", extra.danger)
-                            Kind.UPCOMING -> Pill(if (e.sub.autoRenew) "${e.sub.payMethodLabel} 自动扣款" else "${e.sub.payMethodLabel} 手动付款", MaterialTheme.colorScheme.primary)
+                            Kind.PAID -> Pill(str(R.string.common_paid), extra.success)
+                            Kind.OVERDUE -> Pill(str(R.string.cal_overdue), extra.danger)
+                            Kind.UPCOMING -> Pill(if (e.sub.autoRenew) str(R.string.cal_auto_debit, e.sub.payMethodLabel) else str(R.string.cal_manual_pay, e.sub.payMethodLabel), MaterialTheme.colorScheme.primary)
                         }
                     }
                     Text(Currencies.formatList(e.amount, e.currency), style = MaterialTheme.typography.titleSmall.merge(TabularNums), fontWeight = FontWeight.Bold)

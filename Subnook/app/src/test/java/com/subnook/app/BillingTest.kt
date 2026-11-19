@@ -10,6 +10,8 @@ import org.junit.Test
 import java.time.LocalDate
 
 class BillingTest {
+    init { TestL10n.zh() }
+
     private fun sub(next: LocalDate, count: Int = 1, unit: CycleUnit = CycleUnit.MONTH, amount: Double = 30.0, cur: String = "CNY") =
         Subscription(name = "t", amount = amount, currency = cur, cycleCount = count, cycleUnit = unit,
             nextBillingDay = next.toEpochDay(), anchorDay = next.dayOfMonth)

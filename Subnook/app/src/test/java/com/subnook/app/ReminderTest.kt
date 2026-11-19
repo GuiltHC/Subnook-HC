@@ -9,6 +9,8 @@ import org.junit.Test
 import java.time.LocalDate
 
 class ReminderTest {
+    init { TestL10n.zh() }
+
     private val due = LocalDate.of(2026, 11, 20)
     private fun sub(days: Int = 3, last: LocalDate? = null) = Subscription(
         name = "t", amount = 1.0, currency = "CNY", nextBillingDay = due.toEpochDay(), anchorDay = 20,

@@ -1,5 +1,7 @@
 package com.subnook.app.data
 
+import com.subnook.app.R
+import com.subnook.app.str
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Credentials
@@ -30,7 +32,7 @@ class WebDavException(msg: String, cause: Throwable? = null) : IOException(msg, 
  * 不依赖 Android API（XML 用 javax 解析），单元测试里可以直接配合 MockWebServer 跑。
  */
 class WebDavClient(baseUrl: String, user: String, password: String, private val http: OkHttpClient = sharedHttp) {
-    private val base: HttpUrl = normalize(baseUrl) ?: throw WebDavException("服务器地址不正确")
+    private val base: HttpUrl = normalize(baseUrl) ?: throw WebDavException(str(R.string.webdav_bad_url))
     private val folder: HttpUrl = base.newBuilder().addPathSegment(FOLDER).addPathSegment("").build()
     private val auth = Credentials.basic(user, password, Charsets.UTF_8)
 
@@ -47,29 +49,29 @@ class WebDavClient(baseUrl: String, user: String, password: String, private val 
     }
 
     private fun networkMessage(e: IOException): String = when (e) {
-        is java.net.UnknownHostException -> "找不到服务器，请检查地址和网络"
-        is java.net.SocketTimeoutException -> "连接超时，请稍后再试"
-        is javax.net.ssl.SSLException -> "安全连接失败（证书或 https 设置有问题）"
-        is java.net.ConnectException -> "无法连接到服务器"
-        else -> "连接失败：${e.message ?: e.javaClass.simpleName}"
+        is java.net.UnknownHostException -> str(R.string.webdav_unknown_host)
+        is java.net.SocketTimeoutException -> str(R.string.webdav_timeout)
+        is javax.net.ssl.SSLException -> str(R.string.webdav_ssl)
+        is java.net.ConnectException -> str(R.string.webdav_connect)
+        else -> str(R.string.webdav_connect_failed, e.message ?: e.javaClass.simpleName)
     }
 
     private fun fail(r: Response, action: String): Nothing = throw WebDavException(
         when (r.code) {
-            401 -> "账号或密码错误（坚果云等需要填写「应用密码」，不是登录密码）"
-            403 -> "没有权限（$action）"
-            404, 409 -> "路径不存在，请检查服务器地址"
-            405 -> "服务器不支持此操作（$action），请确认填的是 WebDAV 地址"
-            423 -> "文件被锁定，请稍后再试"
-            429, 503 -> "请求太频繁或服务器繁忙，请稍后再试"
-            507 -> "云端空间不足"
-            else -> "$action 失败：HTTP ${r.code}"
+            401 -> str(R.string.webdav_401)
+            403 -> str(R.string.webdav_403, action)
+            404, 409 -> str(R.string.webdav_404)
+            405 -> str(R.string.webdav_405, action)
+            423 -> str(R.string.webdav_423)
+            429, 503 -> str(R.string.webdav_busy)
+            507 -> str(R.string.webdav_507)
+            else -> str(R.string.webdav_http_failed, action, r.code)
         },
     )
 
     /** 检查账号能否登录，并确保 Subnook 文件夹存在 */
     suspend fun connect() = withContext(Dispatchers.IO) {
-        call(propfind(base, 0)) { r -> if (r.code != 207 && !r.isSuccessful) fail(r, "登录") }
+        call(propfind(base, 0)) { r -> if (r.code != 207 && !r.isSuccessful) fail(r, str(R.string.webdav_act_login)) }
         ensureFolder()
     }
 
@@ -79,32 +81,32 @@ class WebDavClient(baseUrl: String, user: String, password: String, private val 
         if (exists) return
         call(request(folder).method("MKCOL", null).build()) { r ->
             // 201 新建成功；405 已存在（并发创建 / 服务器差异）
-            if (!r.isSuccessful && r.code != 405) fail(r, "创建文件夹")
+            if (!r.isSuccessful && r.code != 405) fail(r, str(R.string.webdav_act_mkdir))
         }
     }
 
     suspend fun upload(name: String, bytes: ByteArray) = withContext(Dispatchers.IO) {
         ensureFolder()
         val body = bytes.toRequestBody("application/json; charset=utf-8".toMediaType())
-        call(request(fileUrl(name)).put(body).build()) { r -> if (!r.isSuccessful) fail(r, "上传") }
+        call(request(fileUrl(name)).put(body).build()) { r -> if (!r.isSuccessful) fail(r, str(R.string.webdav_act_upload)) }
     }
 
     suspend fun download(name: String): ByteArray = withContext(Dispatchers.IO) {
         call(request(fileUrl(name)).get().build()) { r ->
-            if (!r.isSuccessful) fail(r, "下载")
-            r.body?.bytes()?.takeIf { it.isNotEmpty() } ?: throw WebDavException("下载的文件是空的")
+            if (!r.isSuccessful) fail(r, str(R.string.webdav_act_download))
+            r.body?.bytes()?.takeIf { it.isNotEmpty() } ?: throw WebDavException(str(R.string.webdav_empty_download))
         }
     }
 
     suspend fun delete(name: String) = withContext(Dispatchers.IO) {
-        call(request(fileUrl(name)).delete().build()) { r -> if (!r.isSuccessful && r.code != 404) fail(r, "删除") }
+        call(request(fileUrl(name)).delete().build()) { r -> if (!r.isSuccessful && r.code != 404) fail(r, str(R.string.webdav_act_delete)) }
     }
 
     /** 列出 Subnook 文件夹里的备份文件，新的在前 */
     suspend fun list(): List<RemoteFile> = withContext(Dispatchers.IO) {
         val xml = call(propfind(folder, 1)) { r ->
             if (r.code == 404) return@call null
-            if (r.code != 207 && !r.isSuccessful) fail(r, "读取文件列表")
+            if (r.code != 207 && !r.isSuccessful) fail(r, str(R.string.webdav_act_list))
             r.body?.string().orEmpty()
         } ?: return@withContext emptyList()
         parseMultiStatus(xml)
@@ -164,7 +166,7 @@ class WebDavClient(baseUrl: String, user: String, password: String, private val 
             val doc = try {
                 f.newDocumentBuilder().parse(xml.byteInputStream())
             } catch (e: Exception) {
-                throw WebDavException("服务器返回的文件列表无法解析", e)
+                throw WebDavException(str(R.string.webdav_list_parse), e)
             }
             return elements(doc.documentElement, "response").mapNotNull { resp ->
                 val href = elements(resp, "href").firstOrNull()?.textContent?.trim().orEmpty()

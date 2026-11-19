@@ -28,8 +28,14 @@ class App : Application() {
     val webDav by lazy { com.subnook.app.data.WebDavSettingsRepository(this) }
     val cloud by lazy { com.subnook.app.data.CloudBackup(this) }
 
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(base)
+        L10n.init(base)
+    }
+
     override fun onCreate() {
         super.onCreate()
+        L10n.init(this)
         notifier.createChannels()
         Scheduler.schedulePeriodicWork(this)
         appScope.launch {

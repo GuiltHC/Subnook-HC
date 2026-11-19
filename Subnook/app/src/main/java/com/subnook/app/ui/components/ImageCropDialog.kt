@@ -1,5 +1,7 @@
 package com.subnook.app.ui.components
 
+import com.subnook.app.R
+import com.subnook.app.str
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.foundation.Canvas
@@ -80,7 +82,7 @@ fun ImageCropDialog(uri: Uri, onDismiss: () -> Unit, onDone: (String) -> Unit) {
     LaunchedEffect(uri) {
         withContext(Dispatchers.IO) { runCatching { IconFiles.decode(context, uri) } }
             .onSuccess { bitmap = it }
-            .onFailure { error = "无法读取这张图片：${it.message ?: it.javaClass.simpleName}" }
+            .onFailure { error = str(R.string.crop_read_failed, it.message ?: it.javaClass.simpleName) }
     }
 
     /** 取景框边长 [s] 像素、缩放 [z] 时，图片每个像素对应的屏幕像素 */
@@ -107,7 +109,7 @@ fun ImageCropDialog(uri: Uri, onDismiss: () -> Unit, onDone: (String) -> Unit) {
                 runCatching { IconFiles.saveCropped(context, b, left.roundToInt(), top.roundToInt(), side.roundToInt()) }
             }.onSuccess(onDone).onFailure {
                 saving = false
-                error = "保存失败：${it.message ?: it.javaClass.simpleName}"
+                error = str(R.string.crop_save_failed, it.message ?: it.javaClass.simpleName)
             }
         }
     }
@@ -115,7 +117,7 @@ fun ImageCropDialog(uri: Uri, onDismiss: () -> Unit, onDone: (String) -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth().padding(20.dp)) {
             Column(Modifier.padding(20.dp)) {
-                Text("裁剪图标", style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp))
+                Text(str(R.string.crop_title), style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp))
                 Spacer(Modifier.height(14.dp))
                 Box(
                     Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(Color(0xFF111111))
@@ -174,8 +176,8 @@ fun ImageCropDialog(uri: Uri, onDismiss: () -> Unit, onDone: (String) -> Unit) {
                 }
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text("取消") }
-                    TextButton(onClick = confirm, enabled = bitmap != null && !saving) { Text(if (saving) "保存中…" else "使用") }
+                    TextButton(onClick = onDismiss) { Text(str(R.string.common_cancel)) }
+                    TextButton(onClick = confirm, enabled = bitmap != null && !saving) { Text(if (saving) str(R.string.crop_saving) else str(R.string.crop_use)) }
                 }
             }
         }

@@ -1,5 +1,13 @@
 # Subnook
 
+> **Subnook-HC — форк [Subnook](https://github.com/capllen/Subnook) (автор capllen) с русским интерфейсом.**
+> Все строки интерфейса вынесены в ресурсы Android: русский — язык по умолчанию (`res/values`),
+> китайский оригинал сохранён в `res/values-zh` и включается, если язык системы китайский.
+> Названия пресетов с китайскими названиями показываются на русском или латиницей (`data/PresetNames.kt`).
+> Debug APK собирается в GitHub Actions: вкладка Actions → последний запуск → артефакт `Subnook-HC-debug-apk`.
+> Лицензия и Required Notice оригинала не изменены (PolyForm Noncommercial 1.0.0, Copyright (c) 2026 capllen).
+
+
 Subnook 是一个简洁的 Android 订阅和分期管理 App：记录各种会员 / 订阅 / 定期账单和分期付款，自动滚动扣款日期，到期前提醒，并按周 / 月 / 年统计花费。数据保存在本机，也可以备份到你自己的 WebDAV。
 
 <p>

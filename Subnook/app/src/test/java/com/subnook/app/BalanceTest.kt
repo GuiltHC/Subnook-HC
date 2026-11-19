@@ -16,6 +16,8 @@ import java.time.LocalDate
 
 /** 余额付款预测。前 8 个测试移植自 PR #3（作者 wanwuzhishi），后面是分期 / 扣款相关的补充 */
 class BalanceTest {
+    init { TestL10n.zh() }
+
     private fun sub(
         next: LocalDate,
         amount: Double,

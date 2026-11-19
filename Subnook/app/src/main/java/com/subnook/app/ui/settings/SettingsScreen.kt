@@ -1,5 +1,9 @@
 package com.subnook.app.ui.settings
 
+import com.subnook.app.R
+import com.subnook.app.str
+import com.subnook.app.plural
+import com.subnook.app.dateFmt
 import com.subnook.app.ui.components.AppAlertDialog
 import android.Manifest
 import android.annotation.SuppressLint
@@ -114,7 +118,7 @@ fun SettingsScreen(vm: MainViewModel) {
     var updateResult by remember { mutableStateOf<UpdateChecker.Result?>(null) }
     val openUrl: (String) -> Unit = { url ->
         runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
-            .onFailure { vm.toast("没有可以打开链接的浏览器") }
+            .onFailure { vm.toast(str(R.string.settings_no_browser)) }
     }
 
     val notifLauncher =rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
@@ -130,13 +134,13 @@ fun SettingsScreen(vm: MainViewModel) {
         Modifier.fillMaxSize().background(cs.background).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        PageHeader("设置", subtitle = "Subnook ${BuildConfig.VERSION_NAME}")
+        PageHeader(str(R.string.nav_settings), subtitle = "Subnook ${BuildConfig.VERSION_NAME}")
 
-        Group("外观") {
+        Group(str(R.string.settings_appearance)) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconTile(Icons.Rounded.Palette, Color(0xFFEC4899))
                 Spacer(Modifier.width(14.dp))
-                Text("主题", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                Text(str(R.string.settings_theme), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                 Row(Modifier.clip(RoundedCornerShape(12.dp)).background(cs.surfaceContainer).padding(3.dp)) {
                     ThemeMode.entries.forEach { m ->
                         val sel = st.settings.theme == m
@@ -152,74 +156,74 @@ fun SettingsScreen(vm: MainViewModel) {
             }
         }
 
-        Group("桌面小组件") {
-            Item(Icons.Rounded.Widgets, Color(0xFF8B5CF6), "添加到桌面") {
+        Group(str(R.string.settings_widget)) {
+            Item(Icons.Rounded.Widgets, Color(0xFF8B5CF6), str(R.string.settings_widget_add)) {
                 val mgr = android.appwidget.AppWidgetManager.getInstance(ctx)
                 val provider = android.content.ComponentName(ctx, com.subnook.app.widget.SubnookWidgetReceiver::class.java)
                 if (mgr.isRequestPinAppWidgetSupported) mgr.requestPinAppWidget(provider, null, null)
                 // ColorOS 等系统可能静默拒绝一键添加，给出手动方法
-                vm.toast("没有弹窗的话：长按桌面空白处 → 卡片 → 插件 → Subnook")
+                vm.toast(str(R.string.settings_widget_manual))
             }
         }
 
-        Group("统计与汇率") {
-            Item(Icons.Rounded.CurrencyExchange, Color(0xFF6366F1), "显示币种", "${Currencies.name(st.settings.displayCurrency)} · ${Currencies.listSymbol(st.settings.displayCurrency)}") { currencyDlg = true }
+        Group(str(R.string.settings_stats_rates)) {
+            Item(Icons.Rounded.CurrencyExchange, Color(0xFF6366F1), str(R.string.settings_display_currency), "${Currencies.name(st.settings.displayCurrency)} · ${Currencies.listSymbol(st.settings.displayCurrency)}") { currencyDlg = true }
             Divider()
-            val rateText = if (st.rates.updatedAt == 0L) "内置参考汇率" else
-                "更新于 " + Instant.ofEpochMilli(st.rates.updatedAt).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("M月d日 HH:mm"))
-            Item(Icons.Rounded.Sync, Color(0xFF0EA5E9), "立即更新汇率", rateText) { vm.refreshRates() }
+            val rateText = if (st.rates.updatedAt == 0L) str(R.string.common_builtin_rates) else
+                str(R.string.settings_updated_at) + Instant.ofEpochMilli(st.rates.updatedAt).atZone(ZoneId.systemDefault()).format(dateFmt(R.string.fmt_md_hm))
+            Item(Icons.Rounded.Sync, Color(0xFF0EA5E9), str(R.string.settings_update_rates), rateText) { vm.refreshRates() }
         }
 
-        Group("提醒") {
-            Item(Icons.Rounded.Schedule, Color(0xFFF59E0B), "提醒时间", "每天 %02d:%02d".format(st.settings.notifyHour, st.settings.notifyMinute)) { timeDlg = true }
+        Group(str(R.string.common_reminders)) {
+            Item(Icons.Rounded.Schedule, Color(0xFFF59E0B), str(R.string.settings_notify_time), str(R.string.settings_notify_time_value, "%02d:%02d".format(st.settings.notifyHour, st.settings.notifyMinute))) { timeDlg = true }
             Divider()
-            Item(Icons.Rounded.Notifications, Color(0xFFEF4444), "通知权限", ok = notifGranted) {
+            Item(Icons.Rounded.Notifications, Color(0xFFEF4444), str(R.string.settings_notif_permission), ok = notifGranted) {
                 if (Build.VERSION.SDK_INT >= 33 && !notifGranted) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 else ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
             }
             Divider()
-            Item(Icons.Rounded.Alarm, Color(0xFF8B5CF6), "准时提醒", ok = exactOk) {
+            Item(Icons.Rounded.Alarm, Color(0xFF8B5CF6), str(R.string.settings_exact_alarm), ok = exactOk) {
                 if (Build.VERSION.SDK_INT >= 31) {
                     ctx.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${ctx.packageName}")))
                 }
             }
             Divider()
-            Item(Icons.Rounded.BatteryChargingFull, Color(0xFF10B981), "忽略电池优化", ok = batteryOk) {
+            Item(Icons.Rounded.BatteryChargingFull, Color(0xFF10B981), str(R.string.settings_battery), ok = batteryOk) {
                 if (!batteryOk) ctx.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${ctx.packageName}")))
                 else ctx.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
             }
         }
 
-        Group("备份") {
-            Item(Icons.Rounded.Upload, Color(0xFF14B8A6), "导出备份") {
+        Group(str(R.string.settings_backup)) {
+            Item(Icons.Rounded.Upload, Color(0xFF14B8A6), str(R.string.settings_export)) {
                 exportLauncher.launch("subnook-backup-${LocalDate.now()}.json")
             }
             Divider()
-            Item(Icons.Rounded.Download, Color(0xFF3B82F6), "导入备份") {
+            Item(Icons.Rounded.Download, Color(0xFF3B82F6), str(R.string.settings_import)) {
                 importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
             }
             CloudBackupRows(vm)
         }
 
-        Group("关于") {
-            Item(Icons.Rounded.Info, Color(0xFF64748B), "Subnook", "版本 ${BuildConfig.VERSION_NAME}") {
+        Group(str(R.string.settings_about)) {
+            Item(Icons.Rounded.Info, Color(0xFF64748B), "Subnook", str(R.string.settings_version, BuildConfig.VERSION_NAME)) {
                 aboutDlg = true
             }
             Divider()
-            Item(Icons.Rounded.Code, Color(0xFF24292F), "GitHub 仓库", UpdateChecker.REPO_URL.removePrefix("https://")) {
+            Item(Icons.Rounded.Code, Color(0xFF24292F), str(R.string.common_github_repo), UpdateChecker.REPO_URL.removePrefix("https://")) {
                 openUrl(UpdateChecker.REPO_URL)
             }
             Divider()
             Item(
-                Icons.Rounded.SystemUpdate, Color(0xFF22C55E), "检查更新",
-                if (checking) "正在检查…" else null,
+                Icons.Rounded.SystemUpdate, Color(0xFF22C55E), str(R.string.settings_check_update),
+                if (checking) str(R.string.settings_checking) else null,
             ) {
                 if (checking) return@Item
                 checking = true
                 scope.launch {
                     runCatching { UpdateChecker.check(BuildConfig.VERSION_NAME) }
                         .onSuccess { updateResult = it }
-                        .onFailure { vm.toast("检查更新失败：${it.message ?: it.javaClass.simpleName}") }
+                        .onFailure { vm.toast(str(R.string.settings_check_failed, it.message ?: it.javaClass.simpleName)) }
                     checking = false
                 }
             }
@@ -228,7 +232,7 @@ fun SettingsScreen(vm: MainViewModel) {
         Text(
             run {
                 val inst = st.subs.count { it.isInstallment }
-                val count = if (inst > 0) "${st.subs.size - inst} 个订阅、$inst 个分期" else "${st.subs.size} 个订阅"
+                val count = if (inst > 0) plural(R.plurals.settings_count_subs, st.subs.size - inst, st.subs.size - inst) + ", " + plural(R.plurals.settings_count_inst, inst, inst) else plural(R.plurals.settings_count_subs, st.subs.size, st.subs.size)
                 count
             },
             style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant,
@@ -243,10 +247,10 @@ fun SettingsScreen(vm: MainViewModel) {
         val tp = rememberTimePickerState(st.settings.notifyHour, st.settings.notifyMinute, is24Hour = true)
         AppAlertDialog(
             onDismissRequest = { timeDlg = false },
-            title = { Text("提醒时间") },
+            title = { Text(str(R.string.settings_notify_time)) },
             text = { TimePicker(tp) },
-            confirmButton = { TextButton(onClick = { vm.setNotifyTime(tp.hour, tp.minute); timeDlg = false }) { Text("确定") } },
-            dismissButton = { TextButton(onClick = { timeDlg = false }) { Text("取消") } },
+            confirmButton = { TextButton(onClick = { vm.setNotifyTime(tp.hour, tp.minute); timeDlg = false }) { Text(str(R.string.common_ok)) } },
+            dismissButton = { TextButton(onClick = { timeDlg = false }) { Text(str(R.string.common_cancel)) } },
         )
     }
     if (aboutDlg) {
@@ -256,13 +260,13 @@ fun SettingsScreen(vm: MainViewModel) {
             title = { Text("Subnook") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("版本 ${BuildConfig.VERSION_NAME}（${BuildConfig.VERSION_CODE}）", style = MaterialTheme.typography.titleSmall)
-                    Text("源码公开，禁止商用（PolyForm Noncommercial 1.0.0）", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                    Text(str(R.string.settings_version_code, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), style = MaterialTheme.typography.titleSmall)
+                    Text(str(R.string.settings_license), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
                     Text("© 2026 capllen", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
                 }
             },
-            confirmButton = { TextButton(onClick = { aboutDlg = false }) { Text("好的") } },
-            dismissButton = { TextButton(onClick = { openUrl(UpdateChecker.REPO_URL); aboutDlg = false }) { Text("GitHub 仓库") } },
+            confirmButton = { TextButton(onClick = { aboutDlg = false }) { Text(str(R.string.common_got_it)) } },
+            dismissButton = { TextButton(onClick = { openUrl(UpdateChecker.REPO_URL); aboutDlg = false }) { Text(str(R.string.common_github_repo)) } },
         )
     }
     updateResult?.let { r ->
@@ -270,41 +274,41 @@ fun SettingsScreen(vm: MainViewModel) {
         when (r) {
             is UpdateChecker.Result.NewVersion -> AppAlertDialog(
                 onDismissRequest = dismiss,
-                title = { Text("发现新版本 ${r.release.version}") },
+                title = { Text(str(R.string.settings_new_version, r.release.version)) },
                 text = {
                     Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
-                        Text("当前版本 ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(str(R.string.settings_current_version, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (r.release.notes.isNotBlank()) {
                             Spacer(Modifier.height(10.dp))
                             Text(r.release.notes, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 },
-                confirmButton = { TextButton(onClick = { openUrl(r.release.url); dismiss() }) { Text("前往下载") } },
-                dismissButton = { TextButton(onClick = dismiss) { Text("以后再说") } },
+                confirmButton = { TextButton(onClick = { openUrl(r.release.url); dismiss() }) { Text(str(R.string.settings_download)) } },
+                dismissButton = { TextButton(onClick = dismiss) { Text(str(R.string.settings_later)) } },
             )
             is UpdateChecker.Result.UpToDate -> AppAlertDialog(
                 onDismissRequest = dismiss,
-                title = { Text("已是最新版本") },
-                text = { Text("当前版本 ${BuildConfig.VERSION_NAME}") },
-                confirmButton = { TextButton(onClick = dismiss) { Text("好的") } },
+                title = { Text(str(R.string.settings_up_to_date)) },
+                text = { Text(str(R.string.settings_current_version, BuildConfig.VERSION_NAME)) },
+                confirmButton = { TextButton(onClick = dismiss) { Text(str(R.string.common_got_it)) } },
             )
             UpdateChecker.Result.NoRelease -> AppAlertDialog(
                 onDismissRequest = dismiss,
-                title = { Text("暂无发布版本") },
-                text = { Text("GitHub 上还没有发布版本。") },
-                confirmButton = { TextButton(onClick = { openUrl(UpdateChecker.RELEASES_URL); dismiss() }) { Text("打开仓库") } },
-                dismissButton = { TextButton(onClick = dismiss) { Text("关闭") } },
+                title = { Text(str(R.string.settings_no_releases)) },
+                text = { Text(str(R.string.settings_no_releases_text)) },
+                confirmButton = { TextButton(onClick = { openUrl(UpdateChecker.RELEASES_URL); dismiss() }) { Text(str(R.string.settings_open_repo)) } },
+                dismissButton = { TextButton(onClick = dismiss) { Text(str(R.string.common_close)) } },
             )
         }
     }
     importUri?.let { uri ->
         AppAlertDialog(
             onDismissRequest = { importUri = null },
-            title = { Text("导入并覆盖？") },
-            text = { Text("当前全部数据将被备份文件替换，无法撤销。") },
-            confirmButton = { TextButton(onClick = { vm.import(uri); importUri = null }) { Text("覆盖导入", color = MaterialTheme.colorScheme.error) } },
-            dismissButton = { TextButton(onClick = { importUri = null }) { Text("取消") } },
+            title = { Text(str(R.string.settings_import_q)) },
+            text = { Text(str(R.string.settings_import_text)) },
+            confirmButton = { TextButton(onClick = { vm.import(uri); importUri = null }) { Text(str(R.string.settings_import_yes), color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { TextButton(onClick = { importUri = null }) { Text(str(R.string.common_cancel)) } },
         )
     }
 }
@@ -329,8 +333,8 @@ internal fun Item(icon: ImageVector, tint: Color, title: String, desc: String? =
             }
         }
         when (ok) {
-            true -> Pill("已开启", LocalExtra.current.success)
-            false -> Pill("去开启", LocalExtra.current.warning)
+            true -> Pill(str(R.string.settings_on), LocalExtra.current.success)
+            false -> Pill(str(R.string.settings_turn_on), LocalExtra.current.warning)
             null -> Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.outline)
         }
     }

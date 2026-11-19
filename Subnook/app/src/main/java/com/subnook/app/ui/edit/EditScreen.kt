@@ -1,5 +1,9 @@
 package com.subnook.app.ui.edit
 
+import com.subnook.app.R
+import com.subnook.app.str
+import com.subnook.app.plural
+import com.subnook.app.dateFmt
 import com.subnook.app.ui.components.AppAlertDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.offset
@@ -360,7 +364,7 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
         val s = form.build()
         if (s == null) {
             showErrors = true
-            vm.toast(if (form.isInstallment) "请填写名称、分期金额、期数和正确的当前期数" else "请填写名称、金额和正确的周期")
+            vm.toast(if (form.isInstallment) str(R.string.edit_err_installment) else str(R.string.edit_err_subscription))
             return
         }
         // 填了新分类名但还没问过（没离开输入框就点了保存）：先问再保存
@@ -384,12 +388,12 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
         topBar = {
             TopAppBar(
                 title = {
-                    val what = if (form.isInstallment) "分期" else "订阅"
-                    Text(if (id > 0) "编辑$what" else "新建$what", style = MaterialTheme.typography.titleLarge)
+                    
+                    Text(str(if (id > 0) { if (form.isInstallment) R.string.edit_title_edit_inst else R.string.edit_title_edit_sub } else { if (form.isInstallment) R.string.edit_title_new_inst else R.string.edit_title_new_sub }), style = MaterialTheme.typography.titleLarge)
                 },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") } },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, str(R.string.common_back)) } },
                 actions = {
-                    if (id > 0) IconButton(onClick = { deleteDlg = true }) { Icon(Icons.Rounded.DeleteOutline, "删除", tint = extra.danger) }
+                    if (id > 0) IconButton(onClick = { deleteDlg = true }) { Icon(Icons.Rounded.DeleteOutline, str(R.string.common_delete), tint = extra.danger) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = cs.background, scrolledContainerColor = cs.background),
             )
@@ -406,7 +410,7 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        if (id > 0) "保存修改" else if (form.isInstallment) "添加分期" else "添加订阅",
+                        if (id > 0) str(R.string.edit_save) else if (form.isInstallment) str(R.string.edit_add_installment) else str(R.string.common_add_subscription),
                         style = MaterialTheme.typography.titleMedium, color = Color.White,
                     )
                 }
@@ -423,17 +427,17 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                     Box(
                         Modifier.shadow(18.dp, RoundedCornerShape(26.dp), spotColor = Color(form.color).copy(alpha = 0.6f), ambientColor = Color(form.color).copy(alpha = 0.3f)),
                     ) {
-                        SubIcon(form.iconType, form.iconValue, form.color, form.name.ifBlank { "订" }, size = 88.dp)
+                        SubIcon(form.iconType, form.iconValue, form.color, form.name.ifBlank { str(R.string.common_icon_placeholder) }, size = 88.dp)
                     }
                     Box(
                         Modifier.align(Alignment.BottomEnd).offset(x = 6.dp, y = 6.dp).size(30.dp).clip(CircleShape)
                             .background(cs.background).padding(3.dp).clip(CircleShape).background(extra.accentBrush),
                         contentAlignment = Alignment.Center,
-                    ) { Icon(Icons.Rounded.Edit, "更换图标", Modifier.size(15.dp), tint = Color.White) }
+                    ) { Icon(Icons.Rounded.Edit, str(R.string.edit_change_icon), Modifier.size(15.dp), tint = Color.White) }
                 }
                 Spacer(Modifier.height(18.dp))
                 Field(
-                    form.name, { form.name = it }, if (form.isInstallment) "名称（如：手机分期）" else "订阅名称",
+                    form.name, { form.name = it }, if (form.isInstallment) str(R.string.edit_name_installment) else str(R.string.edit_name_subscription),
                     isError = showErrors && form.name.isBlank(), modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -441,10 +445,10 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
             // 「启用中」放在最前面；关掉后下面的内容都收起来。已经提前还清的分期没有开关，内容照常显示（要能撤销提前还款）
             val paidOff = form.original?.let { Installments.isPaidOff(it) } == true
             if (paidOff) {
-                SoftCardRow { Pill("已提前还清", extra.success) }
+                SoftCardRow { Pill(str(R.string.edit_paid_off_early), extra.success) }
             } else {
                 SoftCardRow {
-                    SwitchRow(Icons.Rounded.PowerSettingsNew, cs.primary, "启用中", null, form.active) { form.active = it }
+                    SwitchRow(Icons.Rounded.PowerSettingsNew, cs.primary, str(R.string.edit_active), null, form.active) { form.active = it }
                 }
             }
 
@@ -453,11 +457,11 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
             if (form.isInstallment) {
                 InstallmentFields(form, showErrors, onCurrency = { currencyDlg = true }, onDate = { dateDlg = true })
                 InstallmentPlan(form)
-            } else Group("金额与周期") {
+            } else Group(str(R.string.edit_amount_cycle)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Field(
-                            form.amount, { form.amount = it.filter { c -> c.isDigit() || c == '.' } }, "付款金额",
+                            form.amount, { form.amount = it.filter { c -> c.isDigit() || c == '.' } }, str(R.string.edit_amount),
                             keyboard = KeyboardType.Decimal,
                             isError = showErrors && form.amount.toDoubleOrNull() == null,
                             modifier = Modifier.weight(1f),
@@ -474,7 +478,7 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                         }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("每", style = MaterialTheme.typography.titleSmall)
+                        Text(str(R.string.edit_every), style = MaterialTheme.typography.titleSmall)
                         Spacer(Modifier.width(8.dp))
                         Field(
                             form.cycleCount, { form.cycleCount = it.filter(Char::isDigit).take(3) }, null,
@@ -494,15 +498,15 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                         IconTile(Icons.Rounded.CalendarMonth, cs.primary, size = 34.dp)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("下次付款日期", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
-                            Text(form.next.format(DateTimeFormatter.ofPattern("yyyy年M月d日（E）", java.util.Locale.CHINA)), style = MaterialTheme.typography.titleSmall)
+                            Text(str(R.string.edit_next_date), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                            Text(form.next.format(dateFmt(R.string.fmt_ymd_dow)), style = MaterialTheme.typography.titleSmall)
                         }
                         Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = cs.outline)
                     }
                 }
             }
 
-            Group("付款方式") {
+            Group(str(R.string.common_pay_method)) {
                 Column(Modifier.padding(16.dp)) {
                     // 分期只列能分期的方式（花呗、白条、信用卡等）；手动 / 自动只看下面的开关
                     PayMethodPicker(
@@ -512,7 +516,7 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                     )
                     Spacer(Modifier.height(14.dp))
                     SwitchRow(
-                        Icons.Rounded.Autorenew, extra.success, if (form.isInstallment) "自动扣款" else "自动续费",
+                        Icons.Rounded.Autorenew, extra.success, if (form.isInstallment) str(R.string.edit_auto_debit) else str(R.string.common_auto_renew),
                         null, form.autoRenew,
                     ) { form.autoRenew = it }
                 }
@@ -527,7 +531,7 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                 )
             }
 
-            Group("分类") {
+            Group(str(R.string.common_category)) {
                 CategoryPicker(
                     form, st.settings.customCategories,
                     onAddCustom = vm::addCustomCategory, onRemoveCustom = vm::removeCustomCategory,
@@ -535,10 +539,10 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                 )
             }
 
-            Group("提醒") {
+            Group(str(R.string.common_reminders)) {
                 Column(Modifier.padding(16.dp)) {
                     SwitchRow(
-                        Icons.Rounded.NotificationsActive, extra.warning, "扣款提醒",
+                        Icons.Rounded.NotificationsActive, extra.warning, str(R.string.edit_remind),
                         null, form.remind,
                     ) { form.remind = it }
                     if (form.remind) {
@@ -547,10 +551,10 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(cs.surfaceContainer).padding(horizontal = 14.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("提前天数", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                            Text(str(R.string.edit_remind_days), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                             StepButton("−", enabled = form.remindDays > 0) { form.remindDays-- }
                             Text(
-                                if (form.remindDays == 0) "当天" else "${form.remindDays} 天",
+                                if (form.remindDays == 0) str(R.string.edit_remind_same_day) else plural(R.plurals.edit_n_days, form.remindDays, form.remindDays),
                                 style = MaterialTheme.typography.titleMedium.merge(TabularNums),
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                 modifier = Modifier.width(64.dp),
@@ -559,15 +563,15 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(1, 3, 7, 14).forEach { d -> Chip("${d}天", form.remindDays == d) { form.remindDays = d } }
+                            listOf(1, 3, 7, 14).forEach { d -> Chip(plural(R.plurals.edit_n_days_chip, d, d), form.remindDays == d) { form.remindDays = d } }
                         }
                     }
                 }
             }
 
-            Group("备注") {
+            Group(str(R.string.edit_note)) {
                 Field(
-                    form.note, { form.note = it }, "账号、套餐等（可选）", singleLine = false,
+                    form.note, { form.note = it }, str(R.string.edit_note_hint), singleLine = false,
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
                 )
             }
@@ -575,11 +579,11 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
             if (id > 0) {
                 form.build()?.let { s ->
                     val cur = st.settings.displayCurrency
-                    if (!s.isInstallment) Group("折合") {
+                    if (!s.isInstallment) Group(str(R.string.edit_equivalent)) {
                         Row(Modifier.padding(16.dp)) {
                             listOf(SummaryPeriod.WEEK, SummaryPeriod.MONTH, SummaryPeriod.YEAR).forEach { p ->
                                 Column(Modifier.weight(1f)) {
-                                    Text(p.unitLabel, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                                    Text(p.unitLabel.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
                                     Text(
                                         Currencies.formatList(st.rates.convert(Billing.periodCost(s, p), s.currency, cur), cur),
                                         style = MaterialTheme.typography.titleMedium.merge(TabularNums),
@@ -590,8 +594,8 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                     }
                     if (!s.autoRenew && s.active && !Installments.isFinished(s)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            OutlinedButton(onClick = { vm.skip(s); onBack() }, Modifier.weight(1f).height(48.dp), shape = RoundedCornerShape(14.dp)) { Text("跳过本期") }
-                            Button(onClick = { vm.confirmPaid(s); onBack() }, Modifier.weight(1.4f).height(48.dp), shape = RoundedCornerShape(14.dp)) { Text("本期已付款") }
+                            OutlinedButton(onClick = { vm.skip(s); onBack() }, Modifier.weight(1f).height(48.dp), shape = RoundedCornerShape(14.dp)) { Text(str(R.string.common_skip_period)) }
+                            Button(onClick = { vm.confirmPaid(s); onBack() }, Modifier.weight(1.4f).height(48.dp), shape = RoundedCornerShape(14.dp)) { Text(str(R.string.edit_period_paid)) }
                         }
                     }
                 }
@@ -600,12 +604,12 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                 if (stored != null && stored.isInstallment && stored.active && !Installments.isFinished(stored)) {
                     OutlinedButton(
                         onClick = { prepayDlg = true }, Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(14.dp),
-                    ) { Text("提前还款") }
+                    ) { Text(str(R.string.common_prepay)) }
                 }
-                Group("付款记录 · ${payments.size}") {
+                Group(str(R.string.edit_payments, payments.size)) {
                     if (payments.isEmpty()) {
                         Text(
-                            "暂无记录",
+                            str(R.string.edit_no_records),
                             style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(16.dp),
                         )
                     }
@@ -617,11 +621,11 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                                 Text(
                                     LocalDate.ofEpochDay(p.billingDay).let { d ->
                                         val o = form.original
-                                        d.format(DateTimeFormatter.ofPattern("yyyy年M月d日")) + when {
+                                        d.format(dateFmt(R.string.fmt_ymd)) + when {
                                             p.prepay -> ""
-                                            o != null && o.isInstallment -> " · 第 ${p.term ?: Installments.displayTerm(o, d)} 期"
+                                            o != null && o.isInstallment -> str(R.string.edit_record_term, p.term ?: Installments.displayTerm(o, d))
                                             else -> ""
-                                        } + if (p.balanceUsed > 0) " · 余额扣 ${Currencies.formatList(p.balanceUsed, p.currency)}" else ""
+                                        } + if (p.balanceUsed > 0) str(R.string.edit_record_balance, Currencies.formatList(p.balanceUsed, p.currency)) else ""
                                     },
                                     style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
                                     maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
@@ -629,9 +633,9 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                             }
                             when {
                                 p.prepay -> Pill(
-                                    if (form.original?.instPaidOffDay == p.billingDay) "提前还清" else "提前还款", extra.warning,
+                                    if (form.original?.instPaidOffDay == p.billingDay) str(R.string.common_paid_off_early) else str(R.string.common_prepay), extra.warning,
                                 )
-                                else -> Pill(if (p.auto) "自动" else "手动确认", if (p.auto) extra.success else cs.primary)
+                                else -> Pill(if (p.auto) str(R.string.common_auto) else str(R.string.edit_record_manual), if (p.auto) extra.success else cs.primary)
                             }
                             IconButton(onClick = {
                                 if (p.prepay) undoRecord = p
@@ -640,7 +644,7 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                                     if (p.balanceUsed > 0) form.adjustBalance(p.balanceUsed)
                                     vm.deletePayment(p)
                                 }
-                            }) { Icon(Icons.Rounded.Close, "删除记录", Modifier.size(18.dp), tint = cs.outline) }
+                            }) { Icon(Icons.Rounded.Close, str(R.string.edit_delete_record), Modifier.size(18.dp), tint = cs.outline) }
                         }
                     }
                 }
@@ -678,9 +682,9 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
                 TextButton(onClick = {
                     state.selectedDateMillis?.let { form.next = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
                     dateDlg = false
-                }) { Text("确定") }
+                }) { Text(str(R.string.common_ok)) }
             },
-            dismissButton = { TextButton(onClick = { dateDlg = false }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { dateDlg = false }) { Text(str(R.string.common_cancel)) } },
         ) { DatePicker(state) }
     }
     saveAsk?.let { name ->
@@ -693,7 +697,7 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
         AddCategoryDialog(name) { add -> answer(add) }
     }
     savePayAsk?.let { name ->
-        AddCategoryDialog(name, what = "付款方式") { add ->
+        AddCategoryDialog(name, what = str(R.string.add_what_pay_method)) { add ->
             if (add) vm.addCustomPayMethod(name)
             askedPayMethod = name
             savePayAsk = null
@@ -703,18 +707,18 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
     undoRecord?.let { p ->
         AppAlertDialog(
             onDismissRequest = { undoRecord = null },
-            title = { Text("撤销这笔提前还款？") },
+            title = { Text(str(R.string.edit_undo_prepay_q)) },
             text = {
                 Text(
-                    "删除这条 ${Currencies.formatList(p.amount, p.currency)} 的记录，分期恢复到提前还款前。",
+                    str(R.string.edit_undo_prepay_text, Currencies.formatList(p.amount, p.currency)),
                 )
             },
             confirmButton = {
                 TextButton(onClick = { undoRecord = null; vm.undoPrepay(p) { onBack() } }) {
-                    Text("撤销并恢复", color = MaterialTheme.colorScheme.error)
+                    Text(str(R.string.edit_undo_prepay_yes), color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = { undoRecord = null }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { undoRecord = null }) { Text(str(R.string.common_cancel)) } },
         )
     }
     if (prepayDlg) form.original?.let { o ->
@@ -726,14 +730,14 @@ fun EditScreen(vm: MainViewModel, id: Long, presetKey: String?, onBack: () -> Un
     if (deleteDlg) {
         AppAlertDialog(
             onDismissRequest = { deleteDlg = false },
-            title = { Text("删除「${form.name}」？") },
-            text = { Text("付款记录会一起删除，无法恢复。") },
+            title = { Text(str(R.string.edit_delete_q, form.name)) },
+            text = { Text(str(R.string.edit_delete_text)) },
             confirmButton = {
                 TextButton(onClick = { form.original?.let(vm::delete); deleteDlg = false; onBack() }) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                    Text(str(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = { deleteDlg = false }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { deleteDlg = false }) { Text(str(R.string.common_cancel)) } },
         )
     }
 }

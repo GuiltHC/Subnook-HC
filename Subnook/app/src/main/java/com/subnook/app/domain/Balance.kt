@@ -1,5 +1,9 @@
 package com.subnook.app.domain
 
+import com.subnook.app.R
+import com.subnook.app.str
+import com.subnook.app.plural
+import com.subnook.app.dateFmt
 import com.subnook.app.data.PayMethod
 import com.subnook.app.data.Subscription
 import java.time.LocalDate
@@ -67,15 +71,15 @@ object Balance {
         balance + EPSILON >= amount
 
     fun periodsText(forecast: BalanceForecast): String = when {
-        forecast.capped -> "$MAX_PERIODS+ 期"
-        forecast.coversAll -> "剩下 ${forecast.periods} 期全部"
-        else -> "${forecast.periods} 期"
+        forecast.capped -> plural(R.plurals.balance_periods_capped, MAX_PERIODS, MAX_PERIODS)
+        forecast.coversAll -> str(R.string.balance_periods_all, forecast.periods)
+        else -> plural(R.plurals.balance_periods, forecast.periods, forecast.periods)
     }
 
     /** 账单日文案：今年省略年份 */
     fun dateText(date: LocalDate, today: LocalDate = Billing.today()): String =
-        if (date.year == today.year) "${date.monthValue}月${date.dayOfMonth}日"
-        else "${date.year}年${date.monthValue}月${date.dayOfMonth}日"
+        if (date.year == today.year) date.format(dateFmt(R.string.fmt_md))
+        else date.format(dateFmt(R.string.fmt_ymd))
 
     private fun roundMoney(v: Double) = com.subnook.app.data.roundMoney(v)
 }

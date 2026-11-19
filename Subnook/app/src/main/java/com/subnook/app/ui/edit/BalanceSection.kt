@@ -1,5 +1,8 @@
 package com.subnook.app.ui.edit
 
+import com.subnook.app.R
+import com.subnook.app.str
+import com.subnook.app.dateFmt
 import com.subnook.app.ui.components.AppAlertDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -64,13 +67,13 @@ internal fun BalanceGroup(
 ) {
     val cs = MaterialTheme.colorScheme
     var topUpDlg by remember { mutableStateOf(false) }
-    Group("余额") {
+    Group(str(R.string.balance_title)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Field(
                     form.balance,
                     { form.balance = it.filter { c -> c.isDigit() || c == '.' }; form.balanceTouched = true },
-                    "当前余额",
+                    str(R.string.balance_current),
                     keyboard = KeyboardType.Decimal,
                     isError = form.balanceValue() == null,
                     modifier = Modifier.weight(1f),
@@ -96,14 +99,14 @@ internal fun BalanceGroup(
                 ) {
                     Icon(Icons.Rounded.Add, null, Modifier.size(18.dp), tint = cs.primary)
                     Spacer(Modifier.width(6.dp))
-                    Text("充值", style = MaterialTheme.typography.labelLarge, color = cs.primary)
+                    Text(str(R.string.common_top_up), style = MaterialTheme.typography.labelLarge, color = cs.primary)
                 }
             }
         }
         if (topUps.isNotEmpty()) {
             HorizontalDivider(color = cs.outlineVariant)
             Text(
-                "充值记录 · ${topUps.size}", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant,
+                str(R.string.balance_topups, topUps.size), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant,
                 modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 2.dp),
             )
             // 最多显示 3 条，多的在框里滑动
@@ -112,11 +115,11 @@ internal fun BalanceGroup(
                     Column(Modifier.weight(1f)) {
                         Text("+" + Currencies.formatList(t.amount, t.currency), style = MaterialTheme.typography.titleSmall.merge(TabularNums), color = LocalExtra.current.success)
                         Text(
-                            LocalDate.ofEpochDay(t.day).format(DateTimeFormatter.ofPattern("yyyy年M月d日")),
+                            LocalDate.ofEpochDay(t.day).format(dateFmt(R.string.fmt_ymd)),
                             style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
                         )
                     }
-                    IconButton(onClick = { onDeleteTopUp(t) }) { Icon(Icons.Rounded.Close, "删除充值记录", Modifier.size(18.dp), tint = cs.outline) }
+                    IconButton(onClick = { onDeleteTopUp(t) }) { Icon(Icons.Rounded.Close, str(R.string.balance_delete_topup), Modifier.size(18.dp), tint = cs.outline) }
                 }
             }
             Spacer(Modifier.height(6.dp))
@@ -138,14 +141,14 @@ private fun BalanceForecastCard(form: Form) {
     val forecast = preview?.let { Balance.forecast(it) } ?: return
     val c = form.currency
     val title = when {
-        forecast.coversAll -> "余额够付${Balance.periodsText(forecast)}"
-        forecast.periods == 0 -> "余额不足 1 期"
-        else -> "余额可用 ${Balance.periodsText(forecast)}"
+        forecast.coversAll -> str(R.string.balance_enough_for, Balance.periodsText(forecast))
+        forecast.periods == 0 -> str(R.string.balance_less_than_one)
+        else -> str(R.string.balance_lasts, Balance.periodsText(forecast))
     }
     val desc = when {
         forecast.coversAll -> ""
-        forecast.periods == 0 -> "还差 ${Currencies.formatList(forecast.shortfall, c)}"
-        else -> "${Balance.dateText(forecast.rechargeOn!!, today)}前需充 ${Currencies.formatList(forecast.rechargeAmount, c)}"
+        forecast.periods == 0 -> str(R.string.balance_shortfall, Currencies.formatList(forecast.shortfall, c))
+        else -> str(R.string.balance_recharge_by, Balance.dateText(forecast.rechargeOn!!, today), Currencies.formatList(forecast.rechargeAmount, c))
     }
     val tint: Color = when {
         forecast.periods == 0 && !forecast.coversAll -> extra.danger
@@ -173,18 +176,18 @@ private fun TopUpDialog(currency: String, onDismiss: () -> Unit, onConfirm: (Dou
     val amount = text.toDoubleOrNull()?.takeIf { it > 0 }
     AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("充值") },
+        title = { Text(str(R.string.common_top_up)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     text, { text = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = { Text("充值金额（${Currencies.listSymbol(currency)}）") }, singleLine = true,
+                    label = { Text(str(R.string.balance_topup_amount, Currencies.listSymbol(currency))) }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
         },
-        confirmButton = { TextButton(enabled = amount != null, onClick = { onConfirm(amount!!) }) { Text("充值") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        confirmButton = { TextButton(enabled = amount != null, onClick = { onConfirm(amount!!) }) { Text(str(R.string.common_top_up)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(str(R.string.common_cancel)) } },
     )
 }

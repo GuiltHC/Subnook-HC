@@ -14,6 +14,8 @@ import org.junit.Test
 
 /** 旧版本导出的备份必须能导入新版本 */
 class BackupCompatTest {
+    init { TestL10n.zh() }
+
 
     /** 1.2.0 导出的格式（version 1，有 sortIndex，没有分期字段） */
     private val v120 = """

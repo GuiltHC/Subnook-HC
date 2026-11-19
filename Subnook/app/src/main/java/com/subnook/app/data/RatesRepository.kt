@@ -1,5 +1,7 @@
 package com.subnook.app.data
 
+import com.subnook.app.R
+import com.subnook.app.str
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,7 +53,7 @@ class RatesRepository(context: Context) {
             val body = conn.inputStream.bufferedReader().use { it.readText() }
             conn.disconnect()
             val root = json.parseToJsonElement(body).jsonObject
-            check(root["result"]?.jsonPrimitive?.content == "success") { "汇率接口返回失败" }
+            check(root["result"]?.jsonPrimitive?.content == "success") { str(R.string.rates_api_failed) }
             val rates = root["rates"]!!.jsonObject.mapValues { it.value.jsonPrimitive.double }
             val ts = root["time_last_update_unix"]?.jsonPrimitive?.long?.times(1000) ?: System.currentTimeMillis()
             // 记录本地拉取时间，保证 24h 刷新节奏

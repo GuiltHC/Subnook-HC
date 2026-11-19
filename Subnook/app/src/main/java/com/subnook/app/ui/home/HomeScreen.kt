@@ -1,5 +1,9 @@
 package com.subnook.app.ui.home
 
+import com.subnook.app.R
+import com.subnook.app.str
+import com.subnook.app.plural
+import com.subnook.app.dateFmt
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
@@ -103,10 +107,20 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /** 订阅列表筛选：全部 / 自动续费 / 手动付款 */
-private enum class RenewFilter(val label: String, val short: String, val test: (Subscription) -> Boolean) {
-    ALL("全部", "全部", { true }),
-    AUTO("自动续费", "自动", { it.autoRenew }),
-    MANUAL("手动付款", "手动", { !it.autoRenew }),
+private enum class RenewFilter(
+    val labelRes: Int,
+    val shortRes: Int,
+    val emptySubsRes: Int,
+    val emptyInstRes: Int,
+    val test: (Subscription) -> Boolean,
+) {
+    ALL(R.string.filter_all, R.string.filter_all, R.string.empty_subs_all, R.string.empty_inst_all, { true }),
+    AUTO(R.string.common_auto_renew, R.string.filter_auto_short, R.string.empty_subs_auto, R.string.empty_inst_auto, { it.autoRenew }),
+    MANUAL(R.string.common_manual_payment, R.string.filter_manual_short, R.string.empty_subs_manual, R.string.empty_inst_manual, { !it.autoRenew }),
+    ;
+
+    val label: String get() = str(labelRes)
+    val short: String get() = str(shortRes)
 }
 
 /** 三段滑块：点一下即切换，选中块平滑滑动 */
@@ -176,7 +190,7 @@ private fun SortButton(
                     ascending -> Icons.Rounded.ArrowUpward
                     else -> Icons.Rounded.ArrowDownward
                 },
-                contentDescription = "排序：${current.label}",
+                contentDescription = str(R.string.sort_cd, current.label),
                 modifier = Modifier.size(14.dp), tint = cs.onSurfaceVariant,
             )
         }
@@ -184,11 +198,11 @@ private fun SortButton(
             expanded, onDismissRequest = { onExpand(false) },
             shape = RoundedCornerShape(18.dp), containerColor = cs.surfaceContainerLowest,
         ) {
-            MenuLabel("排序依据")
+            MenuLabel(str(R.string.sort_by))
             SortOrder.entries.forEach { s ->
                 SortMenuItem(
                     icon = s.icon(), text = s.label, selected = s == current,
-                    hint = if (s == SortOrder.MANUAL) "长按拖动" else null,
+                    hint = if (s == SortOrder.MANUAL) str(R.string.sort_drag_hint) else null,
                 ) {
                     // 换依据时用它的默认方向；手动排序没有方向
                     if (s != current) onPick(s, s.defaultAsc)
@@ -197,12 +211,12 @@ private fun SortButton(
             }
             if (current != SortOrder.MANUAL) {
                 HorizontalDivider(Modifier.padding(vertical = 4.dp), color = cs.outlineVariant)
-                MenuLabel("顺序")
+                MenuLabel(str(R.string.sort_direction))
                 Row(
                     Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    listOf(true to "正序", false to "倒序").forEach { (asc, label) ->
+                    listOf(true to str(R.string.sort_asc), false to str(R.string.sort_desc)).forEach { (asc, label) ->
                         val sel = asc == ascending
                         Column(
                             Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
@@ -377,7 +391,7 @@ fun HomeScreen(
         if (moved && (ds != null || di != null)) {
             val subsOrder = st.sortedActive().map { it.id }.let { if (ds != null) merge(it, ds) else it }
             val instOrder = st.sortedInstallments().map { it.id }.let { if (di != null) merge(it, di) else it }
-            if (st.settings.sort != SortOrder.MANUAL) vm.toast("已切换为手动排序")
+            if (st.settings.sort != SortOrder.MANUAL) vm.toast(str(R.string.sort_switched_manual))
             vm.reorder(subsOrder, instOrder)
         } else {
             dragSubs = null
@@ -411,20 +425,20 @@ fun HomeScreen(
         item {
             PageHeader(
                 title = "Subnook",
-                subtitle = today.format(DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.CHINA)),
+                subtitle = today.format(dateFmt(R.string.fmt_md_dow)),
             ) {
                 Box(
                     Modifier.size(42.dp).shadow(10.dp, CircleShape, spotColor = Color(0xFF4F46E5)).clip(CircleShape)
                         .background(extra.accentBrush).clickable { addSheet = true },
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Rounded.Add, "添加", tint = Color.White) }
+                ) { Icon(Icons.Rounded.Add, str(R.string.home_add), tint = Color.White) }
             }
         }
 
         item { HeroCard(st, onPeriod = vm::setPeriod, onCurrency = { pickCurrency = true }, onClick = onStats) }
 
         if (pending.isNotEmpty()) {
-            item { SectionHeader("待付款", pending.size) }
+            item { SectionHeader(str(R.string.home_pending), pending.size) }
             items(pending, key = { "p${it.id}" }) { s ->
                 PendingCard(s, today, onPaid = { vm.confirmPaid(s) }, onSkip = { vm.skip(s) }, onClick = { onOpen(s.id) })
             }
@@ -450,12 +464,12 @@ fun HomeScreen(
 
         if (st.activeSubs.isNotEmpty()) {
             item(key = "h_subs") {
-                CollapsibleHeader("订阅中", shownSubs.size, showSubs, { showSubs = !showSubs }) {
-                    Text("本月 " + Currencies.format(monthCost(shownSubs), cur), style = MaterialTheme.typography.labelMedium.merge(TabularNums), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                CollapsibleHeader(str(R.string.home_active_subs), shownSubs.size, showSubs, { showSubs = !showSubs }) {
+                    Text(str(R.string.home_this_month) + Currencies.format(monthCost(shownSubs), cur), style = MaterialTheme.typography.labelMedium.merge(TabularNums), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (showSubs) {
-                if (shownSubs.isEmpty()) item { EmptyFilterText("没有${renewFilter.label}的订阅") }
+                if (shownSubs.isEmpty()) item { EmptyFilterText(str(renewFilter.emptySubsRes)) }
                 items(shownSubs, key = { it.id }) { s ->
                     Box(Modifier.animateItem(placementSpec = if (reorder.isDragging(s.id)) null else spring(stiffness = Spring.StiffnessMediumLow))) {
                         DragBox(s.id) { SubCard(s, st, today) { onOpen(s.id) } }
@@ -465,17 +479,17 @@ fun HomeScreen(
         }
         if (st.activeInstallments.isNotEmpty()) {
             item(key = "h_inst") {
-                CollapsibleHeader("分期还款", shownInst.size, showInst, { showInst = !showInst }) {
+                CollapsibleHeader(str(R.string.home_installments), shownInst.size, showInst, { showInst = !showInst }) {
                     val left = shownInst.sumOf { s -> st.rates.convert(Installments.summary(s).remainingAmount, s.currency, cur) }
                     Text(
-                        "本月 " + Currencies.format(monthCost(shownInst), cur) + " · 剩余 " + Currencies.format(left, cur),
+                        str(R.string.home_this_month) + Currencies.format(monthCost(shownInst), cur) + str(R.string.home_remaining_sep) + Currencies.format(left, cur),
                         style = MaterialTheme.typography.labelMedium.merge(TabularNums), color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
             if (showInst) {
-                if (shownInst.isEmpty()) item { EmptyFilterText("没有${renewFilter.label}的分期") }
+                if (shownInst.isEmpty()) item { EmptyFilterText(str(renewFilter.emptyInstRes)) }
                 items(shownInst, key = { instKey(it.id) }) { s ->
                     val key = instKey(s.id)
                     Box(Modifier.animateItem(placementSpec = if (reorder.isDragging(key)) null else spring(stiffness = Spring.StiffnessMediumLow))) {
@@ -487,9 +501,9 @@ fun HomeScreen(
         if (st.inactive.isNotEmpty()) {
             item(key = "h_inactive") {
                 val title = when {
-                    st.inactive.all { Installments.isFinished(it) } -> "已还清"
-                    st.inactive.any { Installments.isFinished(it) } -> "已停用 / 已还清"
-                    else -> "已停用"
+                    st.inactive.all { Installments.isFinished(it) } -> str(R.string.common_paid_off)
+                    st.inactive.any { Installments.isFinished(it) } -> str(R.string.home_inactive_mixed)
+                    else -> str(R.string.common_disabled)
                 }
                 CollapsibleHeader(title, st.inactive.size, showInactive, { showInactive = !showInactive }) {}
             }
@@ -527,7 +541,7 @@ private fun CollapsibleHeader(title: String, count: Int, expanded: Boolean, onTo
         info()
         Spacer(Modifier.width(4.dp))
         Icon(
-            Icons.Rounded.ExpandMore, if (expanded) "收起" else "展开",
+            Icons.Rounded.ExpandMore, if (expanded) str(R.string.home_collapse) else str(R.string.home_expand),
             Modifier.size(22.dp).graphicsLayer { rotationZ = rotation },
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -555,9 +569,9 @@ private fun AddChooserSheet(onDismiss: () -> Unit, onSubscription: () -> Unit, o
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("添加", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
-            AddOption(Icons.Rounded.Autorenew, "添加订阅", onSubscription)
-            AddOption(Icons.Rounded.CreditCard, "添加分期付款", onInstallment)
+            Text(str(R.string.home_add), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
+            AddOption(Icons.Rounded.Autorenew, str(R.string.common_add_subscription), onSubscription)
+            AddOption(Icons.Rounded.CreditCard, str(R.string.home_add_installment), onInstallment)
             Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
         }
     }
@@ -621,7 +635,7 @@ private fun HeroCard(st: UiState, onPeriod: (SummaryPeriod) -> Unit, onCurrency:
         }
         Column(Modifier.padding(22.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("${period.unitLabel}平均支出", style = MaterialTheme.typography.labelLarge, color = white.copy(alpha = 0.78f))
+                Text(str(R.string.home_avg_spend, period.unitLabel), style = MaterialTheme.typography.labelLarge, color = white.copy(alpha = 0.78f))
                 Spacer(Modifier.weight(1f))
                 Row(
                     Modifier.clip(CircleShape).background(white.copy(alpha = 0.16f)).clickable(onClick = onCurrency)
@@ -643,21 +657,21 @@ private fun HeroCard(st: UiState, onPeriod: (SummaryPeriod) -> Unit, onCurrency:
             SpendBar(st)
             Spacer(Modifier.height(16.dp))
             Row {
-                Stat("未来 30 天", Currencies.format(next30, cur), Modifier.weight(1f))
-                Stat("全年预计", Currencies.format(yearTotal, cur), Modifier.weight(1f))
+                Stat(str(R.string.common_next_30_days), Currencies.format(next30, cur), Modifier.weight(1f))
+                Stat(str(R.string.home_year_forecast), Currencies.format(yearTotal, cur), Modifier.weight(1f))
                 val inst = st.activeInstallments.size
-                if (inst == 0) Stat("订阅数", "${st.active.size}", Modifier.weight(0.6f))
-                else Stat("订阅+分期", "${st.activeSubs.size}+$inst", Modifier.weight(0.6f))
+                if (inst == 0) Stat(str(R.string.home_subs_count), "${st.active.size}", Modifier.weight(0.6f))
+                else Stat(str(R.string.home_subs_and_inst), "${st.activeSubs.size}+$inst", Modifier.weight(0.6f))
             }
             Spacer(Modifier.height(18.dp))
             PeriodSwitch(period, onPeriod)
             Spacer(Modifier.height(10.dp))
-            val ratesText = if (st.rates.updatedAt == 0L) "内置参考汇率"
-            else "汇率更新于 " + java.time.Instant.ofEpochMilli(st.rates.updatedAt).atZone(java.time.ZoneId.systemDefault())
-                .format(DateTimeFormatter.ofPattern("M月d日 HH:mm"))
+            val ratesText = if (st.rates.updatedAt == 0L) str(R.string.common_builtin_rates)
+            else str(R.string.home_rates_updated) + java.time.Instant.ofEpochMilli(st.rates.updatedAt).atZone(java.time.ZoneId.systemDefault())
+                .format(dateFmt(R.string.fmt_md_hm))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(ratesText, style = MaterialTheme.typography.labelSmall, color = white.copy(alpha = 0.55f), modifier = Modifier.weight(1f))
-                Text("详细统计 ›", style = MaterialTheme.typography.labelMedium, color = white.copy(alpha = 0.85f))
+                Text(str(R.string.home_details), style = MaterialTheme.typography.labelMedium, color = white.copy(alpha = 0.85f))
             }
         }
     }
@@ -723,7 +737,7 @@ private fun PeriodSwitch(period: SummaryPeriod, onPeriod: (SummaryPeriod) -> Uni
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    "按${p.label}", style = MaterialTheme.typography.labelLarge,
+                    str(R.string.home_period_chip, p.label), style = MaterialTheme.typography.labelLarge,
                     color = if (sel) Color(0xFF3730A3) else Color.White.copy(alpha = 0.85f),
                 )
             }
@@ -758,7 +772,7 @@ private fun PendingCard(s: Subscription, today: LocalDate, onPaid: () -> Unit, o
                     BalancePill(s)
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        (if (s.isInstallment) Installments.progressText(s) + " · " else "") + if (s.autoRenew) "自动" else "手动",
+                        (if (s.isInstallment) Installments.progressText(s) + " · " else "") + str(if (s.autoRenew) R.string.common_auto else R.string.common_manual),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
                     )
@@ -771,7 +785,7 @@ private fun PendingCard(s: Subscription, today: LocalDate, onPaid: () -> Unit, o
                 Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceContainer)
                     .clickable(onClick = onSkip).padding(vertical = 11.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text("跳过本期", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            ) { Text(str(R.string.common_skip_period), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             Box(
                 Modifier.weight(1.4f).clip(RoundedCornerShape(14.dp)).background(extra.accentBrush)
                     .clickable(onClick = onPaid).padding(vertical = 11.dp),
@@ -780,7 +794,7 @@ private fun PendingCard(s: Subscription, today: LocalDate, onPaid: () -> Unit, o
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), tint = Color.White)
                     Spacer(Modifier.width(6.dp))
-                    Text("我已付款", style = MaterialTheme.typography.labelLarge, color = Color.White)
+                    Text(str(R.string.home_i_paid), style = MaterialTheme.typography.labelLarge, color = Color.White)
                 }
             }
         }
@@ -795,7 +809,7 @@ private fun BalancePill(s: Subscription) {
     if (f.coversAll || f.periods > 1) return
     val extra = LocalExtra.current
     Spacer(Modifier.width(6.dp))
-    Pill(if (f.periods == 0) "余额不足" else "仅够 1 期", if (f.periods == 0) extra.danger else extra.warning)
+    Pill(if (f.periods == 0) str(R.string.home_balance_low) else str(R.string.home_balance_one), if (f.periods == 0) extra.danger else extra.warning)
 }
 
 @Composable
@@ -809,7 +823,7 @@ private fun SubCard(s: Subscription, st: UiState, today: LocalDate, onClick: () 
     val cur = st.settings.displayCurrency
     val days = Billing.daysUntil(s, today)
     val date = LocalDate.ofEpochDay(s.nextBillingDay)
-    val dateFmt = if (date.year == today.year) "M月d日" else "yy年M月d日"
+    val dayFmt = dateFmt(if (date.year == today.year) R.string.fmt_md else R.string.fmt_yymd)
     SoftCard(Modifier.fillMaxWidth(), onClick = onClick) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
             SubIcon(s.iconType, s.iconValue, s.color, s.name, size = 48.dp)
@@ -824,10 +838,10 @@ private fun SubCard(s: Subscription, st: UiState, today: LocalDate, onClick: () 
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        date.format(DateTimeFormatter.ofPattern(dateFmt)) + " · " + when {
-                            s.payMethod == com.subnook.app.data.PayMethod.MANUAL -> "手动付款"
+                        date.format(dayFmt) + " · " + when {
+                            s.payMethod == com.subnook.app.data.PayMethod.MANUAL -> str(R.string.common_manual_payment)
                             s.autoRenew -> s.payMethodLabel
-                            else -> "${s.payMethodLabel} · 手动"
+                            else -> str(R.string.home_paymethod_manual, s.payMethodLabel)
                         },
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -839,7 +853,7 @@ private fun SubCard(s: Subscription, st: UiState, today: LocalDate, onClick: () 
                         Pill(Billing.dueText(days), dueColor(days))
                         BalancePill(s)
                     } else {
-                        Pill("已停用", MaterialTheme.colorScheme.outline)
+                        Pill(str(R.string.common_disabled), MaterialTheme.colorScheme.outline)
                     }
                 }
             }
@@ -868,7 +882,7 @@ private fun InstallmentCard(s: Subscription, st: UiState, today: LocalDate, onCl
     val sum = Installments.summary(s)
     val days = Billing.daysUntil(s, today)
     val date = LocalDate.ofEpochDay(s.nextBillingDay)
-    val dateFmt = if (date.year == today.year) "M月d日" else "yy年M月d日"
+    val dayFmt = dateFmt(if (date.year == today.year) R.string.fmt_md else R.string.fmt_yymd)
     SoftCard(Modifier.fillMaxWidth(), onClick = onClick) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 15.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -885,9 +899,9 @@ private fun InstallmentCard(s: Subscription, st: UiState, today: LocalDate, onCl
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            if (sum.finished) "${s.instMethod.label} · 共 ${sum.total} 期"
-                            else date.format(DateTimeFormatter.ofPattern(dateFmt)) + " · " + when {
-                                s.payMethod == com.subnook.app.data.PayMethod.MANUAL -> "手动还款"
+                            if (sum.finished) plural(R.plurals.home_inst_finished, sum.total, s.instMethod.label, sum.total)
+                            else date.format(dayFmt) + " · " + when {
+                                s.payMethod == com.subnook.app.data.PayMethod.MANUAL -> str(R.string.home_manual_repay)
                                 s.autoRenew -> s.payMethodLabel
                                 else -> s.payMethodLabel // 手动已由左边的图标表示，省点宽度给金额
                             },
@@ -898,8 +912,8 @@ private fun InstallmentCard(s: Subscription, st: UiState, today: LocalDate, onCl
                     Spacer(Modifier.height(7.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         when {
-                            sum.finished -> Pill(if (Installments.isPaidOff(s)) "提前还清" else "已还清", extra.success)
-                            !s.active -> Pill("已停用", cs.outline)
+                            sum.finished -> Pill(if (Installments.isPaidOff(s)) str(R.string.common_paid_off_early) else str(R.string.common_paid_off), extra.success)
+                            !s.active -> Pill(str(R.string.common_disabled), cs.outline)
                             else -> {
                                 Pill(Billing.dueText(days), dueColor(days))
                                 BalancePill(s)
@@ -912,14 +926,14 @@ private fun InstallmentCard(s: Subscription, st: UiState, today: LocalDate, onCl
                     if (sum.finished) {
                         AmountText(sum.totalPayment, s.currency)
                         Spacer(Modifier.height(2.dp))
-                        Text("合计", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                        Text(str(R.string.common_total), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
                     } else {
                         AmountText(s.amount, s.currency)
                         Spacer(Modifier.height(2.dp))
-                        Text("本期", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                        Text(str(R.string.home_this_period), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
                         Spacer(Modifier.height(2.dp))
                         Text(
-                            "剩余 " + Currencies.formatList(sum.remainingAmount, s.currency),
+                            str(R.string.home_remaining) + Currencies.formatList(sum.remainingAmount, s.currency),
                             style = MaterialTheme.typography.labelSmall.merge(TabularNums), color = cs.outline, maxLines = 1,
                         )
                     }
@@ -933,12 +947,12 @@ private fun InstallmentCard(s: Subscription, st: UiState, today: LocalDate, onCl
             Spacer(Modifier.height(5.dp))
             Row {
                 Text(
-                    if (Installments.isPaidOff(s)) "提前还清" else if (sum.finished) "已还 ${sum.paidTerms} 期" else "第 ${sum.current}/${sum.total} 期 · 已还 ${sum.paidTerms} 期",
+                    if (Installments.isPaidOff(s)) str(R.string.common_paid_off_early) else if (sum.finished) plural(R.plurals.home_paid_terms, sum.paidTerms, sum.paidTerms) else plural(R.plurals.home_term_progress, sum.paidTerms, sum.current, sum.total, sum.paidTerms),
                     style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    (if (Installments.isPaidOff(s)) "还清于 " else "最后一期 ") + sum.endDate.format(DateTimeFormatter.ofPattern("yyyy年M月")),
+                    (if (Installments.isPaidOff(s)) str(R.string.home_paid_off_on) else str(R.string.home_last_term)) + sum.endDate.format(dateFmt(R.string.fmt_ym)),
                     style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant,
                 )
             }
@@ -955,11 +969,11 @@ private fun EmptyHint(onAdd: () -> Unit) {
                 Icon(Icons.Rounded.Autorenew, null, Modifier.size(32.dp), tint = Color.White)
             }
             Spacer(Modifier.height(16.dp))
-            Text("还没有订阅", style = MaterialTheme.typography.titleMedium)
+            Text(str(R.string.home_empty), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(18.dp))
             Box(
                 Modifier.clip(CircleShape).background(extra.accentBrush).clickable(onClick = onAdd).padding(horizontal = 22.dp, vertical = 11.dp),
-            ) { Text("添加第一个订阅", style = MaterialTheme.typography.labelLarge, color = Color.White) }
+            ) { Text(str(R.string.home_add_first), style = MaterialTheme.typography.labelLarge, color = Color.White) }
         }
     }
 }

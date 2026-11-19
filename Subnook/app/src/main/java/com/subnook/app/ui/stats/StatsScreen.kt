@@ -1,5 +1,9 @@
 package com.subnook.app.ui.stats
 
+import com.subnook.app.R
+import com.subnook.app.str
+import com.subnook.app.plural
+import com.subnook.app.dateFmt
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -114,8 +118,8 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
         containerColor = cs.background,
         topBar = {
             TopAppBar(
-                title = { Text("支出统计", style = MaterialTheme.typography.titleLarge) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") } },
+                title = { Text(str(R.string.stats_title), style = MaterialTheme.typography.titleLarge) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, str(R.string.common_back)) } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = cs.background, scrolledContainerColor = cs.background),
             )
         },
@@ -130,37 +134,37 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
             if (active.isEmpty()) {
                 item {
                     SoftCard(Modifier.fillMaxWidth()) {
-                        Text("还没有启用中的订阅，添加后这里会显示统计。", Modifier.padding(24.dp), color = cs.onSurfaceVariant)
+                        Text(str(R.string.stats_empty), Modifier.padding(24.dp), color = cs.onSurfaceVariant)
                     }
                 }
                 return@LazyColumn
             }
 
             item {
-                Group("按分类（每月）") {
+                Group(str(R.string.stats_by_category)) {
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Donut(byCategory, Modifier.size(128.dp)) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text("${byCategory.size}", style = MaterialTheme.typography.headlineSmall)
-                                    Text("个分类", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+                                    Text(plural(R.plurals.stats_categories_word, byCategory.size), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
                                 }
                             }
                             Spacer(Modifier.width(18.dp))
                             byCategory.firstOrNull()?.let { top ->
                                 Column(Modifier.weight(1f)) {
-                                    Text("花得最多", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                                    Text(str(R.string.stats_top), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Box(Modifier.size(10.dp).clip(CircleShape).background(top.color))
                                         Spacer(Modifier.width(6.dp))
                                         Text(top.label, style = MaterialTheme.typography.titleMedium)
                                     }
                                     Text(
-                                        "每月 ${Currencies.format(top.value, cur)} · ${top.count} 个",
+                                        str(R.string.stats_top_detail, Currencies.format(top.value, cur), top.count),
                                         style = MaterialTheme.typography.bodySmall.merge(TabularNums), color = cs.onSurfaceVariant,
                                     )
                                     Text(
-                                        "占 ${if (monthTotal > 0) kotlin.math.round(top.value / monthTotal * 100).toInt() else 0}%",
+                                        str(R.string.stats_share, if (monthTotal > 0) kotlin.math.round(top.value / monthTotal * 100).toInt() else 0),
                                         style = MaterialTheme.typography.headlineSmall, color = top.color,
                                     )
                                 }
@@ -175,13 +179,13 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
             }
 
             item {
-                Group("未来 12 个月实际待付") {
+                Group(str(R.string.stats_next_12)) {
                     Column(Modifier.padding(16.dp)) {
                         val sum = perMonth.sum()
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(Currencies.format(sum, cur), style = MaterialTheme.typography.headlineSmall.merge(TabularNums))
                             Spacer(Modifier.width(8.dp))
-                            Text("合计 · 最高 ${months[perMonth.indexOf(perMonth.max())].monthValue} 月", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
+                            Text(str(R.string.stats_peak_month, months[perMonth.indexOf(perMonth.max())].format(dateFmt(R.string.fmt_ym))), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
                         }
                         Spacer(Modifier.height(14.dp))
                         MonthBars(months, perMonth, cur)
@@ -190,7 +194,7 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
             }
 
             item {
-                Group("花费排行（每月）") {
+                Group(str(R.string.stats_ranking)) {
                     Column(Modifier.padding(vertical = 8.dp)) {
                         active.sortedByDescending(::monthly).take(10).forEachIndexed { i, s ->
                             RankRow(i + 1, s, monthly(s), monthTotal, cur) { onOpen(s.id) }
@@ -203,7 +207,7 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
                 val byMethod = active.groupBy { it.payMethodLabel }
                     .map { (m, l) -> m to l }.sortedByDescending { (_, l) -> l.sumOf(::monthly) }
                     .mapIndexed { i, (m, l) -> Slice(m, l.sumOf(::monthly), ChartColors[(i + 3) % ChartColors.size], l.size) }
-                Group("按付款方式（每月）") {
+                Group(str(R.string.stats_by_pay_method)) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         StackBar(byMethod)
                         byMethod.forEach { s -> LegendRow(s, monthTotal, cur) }
@@ -216,16 +220,16 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
                 val subs = active.filter { !it.isInstallment }
                 val inst = active.filter { it.isInstallment }
                 val parts = listOf(
-                    Slice("订阅", subs.sumOf(::monthly), ChartColors[0], subs.size),
-                    Slice("分期还款", inst.sumOf(::monthly), ChartColors[7], inst.size),
+                    Slice(str(R.string.stats_subscriptions), subs.sumOf(::monthly), ChartColors[0], subs.size),
+                    Slice(str(R.string.home_installments), inst.sumOf(::monthly), ChartColors[7], inst.size),
                 ).filter { it.count > 0 }
                 val left = inst.sumOf { st.rates.convert(com.subnook.app.domain.Installments.summary(it).remainingAmount, it.currency, cur) }
-                Group("订阅 / 分期（每月）") {
+                Group(str(R.string.stats_subs_vs_inst)) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         StackBar(parts)
                         parts.forEach { s -> LegendRow(s, monthTotal, cur) }
                         Text(
-                            "分期剩余待还 ${Currencies.format(left, cur)}",
+                            str(R.string.stats_inst_left, Currencies.format(left, cur)),
                             style = MaterialTheme.typography.bodySmall.merge(TabularNums), color = cs.onSurfaceVariant,
                         )
                     }
@@ -237,10 +241,10 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
                 val manual = active.filter { !it.autoRenew }
                 val extra = LocalExtra.current
                 val parts = listOf(
-                    Slice("自动续费", auto.sumOf(::monthly), extra.success, auto.size),
-                    Slice("手动付款", manual.sumOf(::monthly), extra.warning, manual.size),
+                    Slice(str(R.string.common_auto_renew), auto.sumOf(::monthly), extra.success, auto.size),
+                    Slice(str(R.string.common_manual_payment), manual.sumOf(::monthly), extra.warning, manual.size),
                 ).filter { it.count > 0 }
-                Group("自动 / 手动（每月）") {
+                Group(str(R.string.stats_auto_vs_manual)) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         StackBar(parts)
                         parts.forEach { s -> LegendRow(s, monthTotal, cur) }
@@ -251,7 +255,7 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
             item {
                 val byCur = active.groupBy { it.currency }.map { (c, l) -> c to l }
                     .sortedByDescending { (_, l) -> l.sumOf(::monthly) }
-                Group("按原始币种（每月）") {
+                Group(str(R.string.stats_by_currency)) {
                     Column(Modifier.padding(vertical = 6.dp)) {
                         byCur.forEach { (c, l) ->
                             val orig = l.sumOf { Billing.periodCost(it, SummaryPeriod.MONTH) }
@@ -262,7 +266,7 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
                                 ) { Text(c, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold) }
                                 Spacer(Modifier.width(10.dp))
                                 Text(
-                                    "${Currencies.name(c)} · ${l.size} 个", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
+                                    str(R.string.stats_currency_count, Currencies.name(c), l.size), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
                                     modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 )
                                 Column(horizontalAlignment = Alignment.End) {
@@ -276,11 +280,11 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
             }
 
             item {
-                Group("已付款记录") {
+                Group(str(R.string.stats_paid_records)) {
                     Row(Modifier.padding(16.dp)) {
-                        StatCell("今年已付", Currencies.format(paidThisYear, cur), Modifier.weight(1f))
-                        StatCell("累计已付", Currencies.format(paidAll, cur), Modifier.weight(1f))
-                        StatCell("付款笔数", "${payments.size}", Modifier.weight(0.7f))
+                        StatCell(str(R.string.stats_paid_this_year), Currencies.format(paidThisYear, cur), Modifier.weight(1f))
+                        StatCell(str(R.string.stats_paid_all), Currencies.format(paidAll, cur), Modifier.weight(1f))
+                        StatCell(str(R.string.stats_payment_count), "${payments.size}", Modifier.weight(0.7f))
                     }
                     if (payments.isNotEmpty()) {
                         // 最多显示 3 条，多的在框里滑动（以前只显示最近 5 条）
@@ -292,7 +296,7 @@ fun StatsScreen(vm: MainViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit) {
                                 Spacer(Modifier.width(10.dp))
                                 Text(s.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(
-                                    LocalDate.ofEpochDay(p.billingDay).let { "${it.monthValue}月${it.dayOfMonth}日  " },
+                                    LocalDate.ofEpochDay(p.billingDay).let { it.format(dateFmt(R.string.fmt_md)) + "  " },
                                     style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant,
                                 )
                                 Text(Currencies.format(p.amount, p.currency), style = MaterialTheme.typography.labelLarge.merge(TabularNums))
@@ -321,7 +325,7 @@ private fun PeriodTiles(st: UiState, onCurrency: () -> Unit) {
         Column {
             // 每月作为主数字；每周/每年/每天放到下面一排。币种在右上角切换（与首页紫色卡片一致），金额里不再带代码
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("每月平均支出", style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.75f))
+                Text(str(R.string.common_avg_monthly), style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.75f))
                 Spacer(Modifier.weight(1f))
                 Row(
                     Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.16f)).clickable(onClick = onCurrency)
@@ -340,9 +344,9 @@ private fun PeriodTiles(st: UiState, onCurrency: () -> Unit) {
             Spacer(Modifier.height(14.dp))
             Row {
                 listOf(
-                    "每周" to st.total(SummaryPeriod.WEEK),
-                    "每年" to st.total(SummaryPeriod.YEAR),
-                    "每天" to st.total(SummaryPeriod.YEAR) / 365.2425,
+                    str(R.string.stats_per_week) to st.total(SummaryPeriod.WEEK),
+                    str(R.string.stats_per_year) to st.total(SummaryPeriod.YEAR),
+                    str(R.string.stats_per_day) to st.total(SummaryPeriod.YEAR) / 365.2425,
                 ).forEachIndexed { i, (label, v) ->
                     Column(Modifier.weight(if (i == 1) 1.25f else 1f)) {
                         Text(label, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.65f))
@@ -389,7 +393,7 @@ private fun LegendRow(s: Slice, total: Double, cur: String) {
         Box(Modifier.size(10.dp).clip(CircleShape).background(s.color))
         Spacer(Modifier.width(8.dp))
         Text(
-            if (s.count > 0) "${s.label}  ·  ${s.count} 个" else s.label,
+            if (s.count > 0) str(R.string.stats_slice_count, s.label, s.count) else s.label,
             style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
         )
         Text(
@@ -422,7 +426,7 @@ private fun MonthBars(months: List<YearMonth>, values: List<Double>, cur: String
     var selected by androidx.compose.runtime.remember { mutableIntStateOf(values.indexOf(values.max())) }
     Column {
         Text(
-            "${months[selected].year}年${months[selected].monthValue}月：${Currencies.format(values[selected], cur)}",
+            str(R.string.stats_month_value, months[selected].format(dateFmt(R.string.fmt_ym)), Currencies.format(values[selected], cur)),
             style = MaterialTheme.typography.labelLarge, color = cs.primary,
         )
         Spacer(Modifier.height(10.dp))

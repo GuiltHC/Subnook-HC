@@ -1,5 +1,8 @@
 package com.subnook.app.widget
 
+import com.subnook.app.str
+import com.subnook.app.plural
+import com.subnook.app.dateFmt
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -140,7 +143,7 @@ class SubnookWidget : GlanceAppWidget() {
                 name = s.name,
                 icon = iconFor(context, s),
                 days = Billing.daysUntil(s, today),
-                date = date.format(DateTimeFormatter.ofPattern(if (date.year == today.year) "M月d日" else "yy年M月d日")),
+                date = date.format(dateFmt(if (date.year == today.year) R.string.fmt_md else R.string.fmt_yymd)),
                 amount = Currencies.formatList(s.amount, s.currency),
                 needsConfirm = Billing.isPayable(s, today),
             )
@@ -238,18 +241,18 @@ private fun Small(d: WidgetData, widthDp: Float, heightDp: Float, fontScale: Flo
     Column(GlanceModifier.fillMaxSize()) {
         if (compact) {
             Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("每月 ", style = TextStyle(color = White70, fontSize = 11.sp))
+                Text(str(R.string.common_per_month_prefix), style = TextStyle(color = White70, fontSize = 11.sp))
                 Text(big, style = TextStyle(color = White, fontSize = fitSize(big, 18f, 10), fontWeight = FontWeight.Bold), maxLines = 1)
             }
         } else {
-            Text("每月支出", style = TextStyle(color = White70, fontSize = 12.sp))
+            Text(str(R.string.widget_monthly_spend), style = TextStyle(color = White70, fontSize = 12.sp))
             Text(big, style = TextStyle(color = White, fontSize = fitSize(big, 22f, 8), fontWeight = FontWeight.Bold), maxLines = 1)
-            Text("${d.activeCount} 个订阅", style = TextStyle(color = White55, fontSize = 11.sp))
+            Text(plural(R.plurals.widget_subs_count, d.activeCount, d.activeCount), style = TextStyle(color = White55, fontSize = 11.sp))
         }
         Spacer(GlanceModifier.height(ROW_GAP.dp))
         if (d.items.isEmpty()) {
             Box(GlanceModifier.fillMaxWidth().defaultWeight(), contentAlignment = Alignment.Center) {
-                Text("点此添加订阅", style = TextStyle(color = White70, fontSize = 12.sp))
+                Text(str(R.string.widget_add), style = TextStyle(color = White70, fontSize = 12.sp))
             }
         } else {
             LazyColumn(GlanceModifier.fillMaxWidth().defaultWeight()) {
@@ -284,7 +287,7 @@ private fun NarrowRow(it: WidgetItem, showAmount: Boolean) {
                     GlanceModifier.background(ImageProvider(R.drawable.widget_btn)).padding(horizontal = 8.dp, vertical = 4.dp)
                         .clickable(actionRunCallback<ConfirmPaidAction>(actionParametersOf(ConfirmPaidAction.KEY to it.id))),
                 ) {
-                    Text("已付", style = TextStyle(color = ColorProvider(Color(0xFF4338CA)), fontSize = 11.sp, fontWeight = FontWeight.Bold))
+                    Text(str(R.string.common_paid_short), style = TextStyle(color = ColorProvider(Color(0xFF4338CA)), fontSize = 11.sp, fontWeight = FontWeight.Bold))
                 }
             } else {
                 Text(it.amount, style = TextStyle(color = White, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
@@ -301,22 +304,22 @@ private fun Large(d: WidgetData, compactHeader: Boolean) {
         if (compactHeader) {
             // 单行紧凑标题：给订阅列表腾出一行
             Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("每月 ", style = TextStyle(color = White70, fontSize = 12.sp))
+                Text(str(R.string.common_per_month_prefix), style = TextStyle(color = White70, fontSize = 12.sp))
                 Text(big, style = TextStyle(color = White, fontSize = fitSize(big, 20f, 10), fontWeight = FontWeight.Bold), maxLines = 1)
                 Spacer(GlanceModifier.defaultWeight())
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("未来 30 天", style = TextStyle(color = White55, fontSize = 10.sp))
+                    Text(str(R.string.common_next_30_days), style = TextStyle(color = White55, fontSize = 10.sp))
                     Text(next30, style = TextStyle(color = White, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                 }
             }
         } else {
             Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
                 Column(GlanceModifier.defaultWeight()) {
-                    Text("每月平均支出", style = TextStyle(color = White70, fontSize = 12.sp))
+                    Text(str(R.string.common_avg_monthly), style = TextStyle(color = White70, fontSize = 12.sp))
                     Text(big, style = TextStyle(color = White, fontSize = fitSize(big, 26f, 9), fontWeight = FontWeight.Bold), maxLines = 1)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("未来 30 天", style = TextStyle(color = White55, fontSize = 11.sp))
+                    Text(str(R.string.common_next_30_days), style = TextStyle(color = White55, fontSize = 11.sp))
                     Text(next30, style = TextStyle(color = White, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                 }
             }
@@ -324,7 +327,7 @@ private fun Large(d: WidgetData, compactHeader: Boolean) {
         Spacer(GlanceModifier.height(ROW_GAP.dp))
         if (d.items.isEmpty()) {
             Box(GlanceModifier.fillMaxWidth().defaultWeight(), contentAlignment = Alignment.Center) {
-                Text("还没有订阅，点此添加", style = TextStyle(color = White70, fontSize = 13.sp))
+                Text(str(R.string.widget_empty), style = TextStyle(color = White70, fontSize = 13.sp))
             }
         } else {
             // 可滑动列表：放得下几条就显示几条，其余上下滑动查看
@@ -363,7 +366,7 @@ private fun ItemRow(it: WidgetItem) {
                 GlanceModifier.background(ImageProvider(R.drawable.widget_btn)).padding(horizontal = 10.dp, vertical = 5.dp)
                     .clickable(actionRunCallback<ConfirmPaidAction>(actionParametersOf(ConfirmPaidAction.KEY to it.id))),
             ) {
-                Text("已付", style = TextStyle(color = ColorProvider(Color(0xFF4338CA)), fontSize = 12.sp, fontWeight = FontWeight.Bold))
+                Text(str(R.string.common_paid_short), style = TextStyle(color = ColorProvider(Color(0xFF4338CA)), fontSize = 12.sp, fontWeight = FontWeight.Bold))
             }
         } else {
             Text(it.amount, style = TextStyle(color = White, fontSize = 13.sp, fontWeight = FontWeight.Bold), maxLines = 1)

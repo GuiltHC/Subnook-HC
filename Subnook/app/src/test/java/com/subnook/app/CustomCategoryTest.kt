@@ -11,6 +11,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CustomCategoryTest {
+    init { TestL10n.zh() }
+
     @Test fun askOnlyForNewNames() {
         val custom = listOf("宠物")
         assertTrue(needsAsk("健身", custom, askedFor = null))

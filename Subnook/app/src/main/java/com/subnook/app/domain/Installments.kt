@@ -1,5 +1,8 @@
 package com.subnook.app.domain
 
+import com.subnook.app.R
+import com.subnook.app.str
+import com.subnook.app.plural
 import com.subnook.app.data.Currencies
 import com.subnook.app.data.CycleUnit
 import com.subnook.app.data.InstallmentMethod
@@ -221,10 +224,14 @@ object Installments {
 
     // ---- 提前还款 ----
 
-    enum class PrepayMode(val label: String, val hint: String) {
-        PAY_OFF("一次还清", "把剩下的全部还掉，之后不再扣款"),
-        LOWER_PAYMENT("减少每期还款", "期数不变，剩余本金重新计算，之后每期还得更少"),
-        FEWER_TERMS("缩短还款期数", "每期还款基本不变，提前几期还完，省下更多利息"),
+    enum class PrepayMode(@androidx.annotation.StringRes val labelRes: Int, @androidx.annotation.StringRes val hintRes: Int) {
+        PAY_OFF(R.string.prepay_pay_off, R.string.prepay_pay_off_hint),
+        LOWER_PAYMENT(R.string.prepay_lower_payment, R.string.prepay_lower_payment_hint),
+        FEWER_TERMS(R.string.prepay_fewer_terms, R.string.prepay_fewer_terms_hint),
+        ;
+
+        val label: String get() = str(labelRes)
+        val hint: String get() = str(hintRes)
     }
 
     private val snapshotJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; encodeDefaults = true }
@@ -284,8 +291,8 @@ object Installments {
      * 金额不小于剩余本金时按一次还清处理。
      */
     fun prepay(sub: Subscription, amount: Double, mode: PrepayMode, today: LocalDate): PrepayResult {
-        require(sub.isInstallment && !isFinished(sub)) { "这笔分期已经还清了" }
-        require(amount > 0) { "请填写还款金额" }
+        require(sub.isInstallment && !isFinished(sub)) { str(R.string.common_installment_already_paid) }
+        require(amount > 0) { str(R.string.common_enter_prepay_amount) }
         val ps = parts(sub)
         val cur = currentTerm(sub)
         val paid = ps.take(cur - 1)
@@ -304,7 +311,7 @@ object Installments {
             )
             return PrepayResult(out, paidOff = true, saved = round(leftTotal - amount, sub.currency))
         }
-        require(canPartialPrepay(sub.instMethod)) { "这种分期只能一次还清" }
+        require(canPartialPrepay(sub.instMethod)) { str(R.string.inst_only_full_prepay) }
         val newPrincipal = round(r - amount, sub.currency)
         val remainingTerms = left.size
         val decimals = Currencies.decimals(sub.currency)
@@ -364,9 +371,9 @@ object Installments {
     fun progressText(sub: Subscription): String {
         val s = summary(sub)
         return when {
-            isPaidOff(sub) -> "已提前还清 · 共 ${s.total} 期"
-            s.finished -> "已还清 · 共 ${s.total} 期"
-            else -> "第 ${s.current}/${s.total} 期"
+            isPaidOff(sub) -> plural(R.plurals.inst_progress_paid_off_early, s.total, s.total)
+            s.finished -> plural(R.plurals.inst_progress_paid_off, s.total, s.total)
+            else -> str(R.string.inst_progress_term, s.current, s.total)
         }
     }
 }

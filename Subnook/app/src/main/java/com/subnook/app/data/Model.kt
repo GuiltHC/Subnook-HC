@@ -1,5 +1,9 @@
 package com.subnook.app.data
 
+import androidx.annotation.PluralsRes
+import androidx.annotation.StringRes
+import com.subnook.app.R
+import com.subnook.app.str
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -7,33 +11,46 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 
-enum class CycleUnit(val label: String, val approxDays: Double) {
-    DAY("天", 1.0),
-    WEEK("周", 7.0),
-    MONTH("月", 365.2425 / 12.0),
-    YEAR("年", 365.2425),
+/**
+ * [labelRes]：周期单位的短名（编辑页的分段按钮）；[everyRes]：「每月」；[everyNRes]：「每 N 个月」（复数形式）。
+ */
+enum class CycleUnit(
+    @StringRes val labelRes: Int,
+    val approxDays: Double,
+    @StringRes val everyRes: Int,
+    @PluralsRes val everyNRes: Int,
+) {
+    DAY(R.string.cycle_unit_day, 1.0, R.string.cycle_every_day, R.plurals.cycle_every_n_days),
+    WEEK(R.string.cycle_unit_week, 7.0, R.string.cycle_every_week, R.plurals.cycle_every_n_weeks),
+    MONTH(R.string.cycle_unit_month, 365.2425 / 12.0, R.string.cycle_every_month, R.plurals.cycle_every_n_months),
+    YEAR(R.string.cycle_unit_year, 365.2425, R.string.cycle_every_year, R.plurals.cycle_every_n_years),
+    ;
+
+    val label: String get() = str(labelRes)
 }
 
-enum class PayMethod(val label: String, val defaultAuto: Boolean) {
-    GOOGLE_PLAY("Google Play", true),
-    APP_STORE("App Store", true),
-    WECHAT("微信", true),
-    ALIPAY("支付宝", true),
-    CREDIT_CARD("信用卡", true),
-    PAYPAL("PayPal", true),
-    BANK_CARD("银行卡", true),
+enum class PayMethod(@StringRes val labelRes: Int, val defaultAuto: Boolean) {
+    GOOGLE_PLAY(R.string.pay_google_play, true),
+    APP_STORE(R.string.pay_app_store, true),
+    WECHAT(R.string.pay_wechat, true),
+    ALIPAY(R.string.pay_alipay, true),
+    CREDIT_CARD(R.string.pay_credit_card, true),
+    PAYPAL(R.string.pay_paypal, true),
+    BANK_CARD(R.string.pay_bank_card, true),
     /** 预付余额（话费、游戏点券、平台钱包等）：记账时从订阅的余额里扣 */
-    BALANCE("余额", true),
-    MANUAL("手动付款", false),
-    OTHER("其他", false),
+    BALANCE(R.string.pay_balance, true),
+    MANUAL(R.string.common_manual_payment, false),
+    OTHER(R.string.common_other, false),
     // ---- 分期常用（只列持牌机构 / 大平台的正规消费分期，不放网贷）----
-    HUABEI("花呗", true),
-    JD_BAITIAO("京东白条", true),
-    WECHAT_FENFU("微信分付", true),
-    MEITUAN_YUEFU("美团月付", true),
-    DOUYIN_YUEFU("抖音月付", true),
-    BANK_LOAN("银行贷款", true),
+    HUABEI(R.string.pay_huabei, true),
+    JD_BAITIAO(R.string.pay_jd_baitiao, true),
+    WECHAT_FENFU(R.string.pay_wechat_fenfu, true),
+    MEITUAN_YUEFU(R.string.pay_meituan_yuefu, true),
+    DOUYIN_YUEFU(R.string.pay_douyin_yuefu, true),
+    BANK_LOAN(R.string.pay_bank_loan, true),
     ;
+
+    val label: String get() = str(labelRes)
 
     companion object {
         /** 订阅能选的付款方式（顺序即界面上的顺序） */
@@ -49,27 +66,29 @@ enum class PayMethod(val label: String, val defaultAuto: Boolean) {
  * 订阅和分期共用一套分类（统计页按同一套分类汇总）。
  * 旧的「分期还款」分类已去掉（DB v7 迁移成「其他」），换成几个分期常见的分类。
  */
-enum class Category(val label: String) {
-    VIDEO("影视"),
-    MUSIC("音乐音频"),
-    AI("AI"),
-    CLOUD("云存储"),
-    TOOLS("工具效率"),
-    EDU("学习阅读"),
-    SHOPPING("购物外卖"),
-    SOCIAL("社交"),
-    GAME("游戏"),
-    VPN("网络"),
-    TELECOM("通信运营商"),
-    NEWS("新闻资讯"),
-    LIFE("生活"),
-    DIGITAL("数码产品"),
-    APPLIANCE("家电家居"),
-    CAR("汽车出行"),
-    HOUSING("住房装修"),
-    HEALTH("医疗健康"),
-    OTHER("其他"),
+enum class Category(@StringRes val labelRes: Int) {
+    VIDEO(R.string.cat_video),
+    MUSIC(R.string.cat_music),
+    AI(R.string.cat_ai),
+    CLOUD(R.string.cat_cloud),
+    TOOLS(R.string.cat_tools),
+    EDU(R.string.cat_edu),
+    SHOPPING(R.string.cat_shopping),
+    SOCIAL(R.string.cat_social),
+    GAME(R.string.cat_game),
+    VPN(R.string.cat_vpn),
+    TELECOM(R.string.cat_telecom),
+    NEWS(R.string.cat_news),
+    LIFE(R.string.cat_life),
+    DIGITAL(R.string.cat_digital),
+    APPLIANCE(R.string.cat_appliance),
+    CAR(R.string.cat_car),
+    HOUSING(R.string.cat_housing),
+    HEALTH(R.string.cat_health),
+    OTHER(R.string.common_other),
     ;
+
+    val label: String get() = str(labelRes)
 
     companion object {
         /** 分期的分类：常见的排前面，其余照常可选 */
@@ -86,12 +105,17 @@ enum class SubKind { SUBSCRIPTION, INSTALLMENT }
  * 分期的计息方式。[rateLabel] 是费率输入框的名字，null 表示不需要填费率。
  * 金额按最小货币单位（分；无小数的币种按 1）计算，每期四舍五入，零头放在首期，等额本息的尾差放在末期。
  */
-enum class InstallmentMethod(val label: String, val rateLabel: String?, val hint: String) {
-    INTEREST_FREE("免息", null, "本金平均分到每期，除不尽的零头算在首期"),
-    FEE("每期手续费", "每期费率", "信用卡、花呗、白条常见：每期还 本金÷期数 + 本金×每期费率"),
-    FEE_UPFRONT("首期收手续费", "每期费率", "手续费（本金×每期费率×期数）在首期一次收取，之后每期只还本金"),
-    EQUAL_PAYMENT("等额本息", "年利率", "贷款常见：每期还款额相同，按剩余本金计息，末期多退少补"),
-    EQUAL_PRINCIPAL("等额本金", "年利率", "每期还相同本金 + 剩余本金的利息，越还越少"),
+enum class InstallmentMethod(@StringRes val labelRes: Int, @StringRes val rateLabelRes: Int?, @StringRes val hintRes: Int) {
+    INTEREST_FREE(R.string.inst_interest_free, null, R.string.inst_interest_free_hint),
+    FEE(R.string.inst_fee, R.string.inst_rate_per_period, R.string.inst_fee_hint),
+    FEE_UPFRONT(R.string.inst_fee_upfront, R.string.inst_rate_per_period, R.string.inst_fee_upfront_hint),
+    EQUAL_PAYMENT(R.string.inst_equal_payment, R.string.inst_annual_rate, R.string.inst_equal_payment_hint),
+    EQUAL_PRINCIPAL(R.string.inst_equal_principal, R.string.inst_annual_rate, R.string.inst_equal_principal_hint),
+    ;
+
+    val label: String get() = str(labelRes)
+    val rateLabel: String? get() = rateLabelRes?.let { str(it) }
+    val hint: String get() = str(hintRes)
 }
 
 /** 图标类型：PRESET=内置品牌图(value=预设key) / MATERIAL=设计图标(value=图标名) / CUSTOM=相册图片(value=文件名) / TEXT=文字(value=文字) */
@@ -224,7 +248,8 @@ data class TopUp(
 
 data class Preset(
     val key: String,
-    val name: String,
+    /** 原始名称（tools/presets.psv）；显示用 [name]，俄语界面下会换成 PresetNames 里的名称 */
+    val rawName: String,
     val category: Category,
     val colorLong: Long,
     val price: Double,
@@ -235,4 +260,7 @@ data class Preset(
     val material: String,
 ) {
     val color: Int get() = colorLong.toInt()
+
+    /** Название для показа: для русского интерфейса — из [PresetNames], иначе оригинальное */
+    val name: String get() = PresetNames.localized(key) ?: rawName
 }

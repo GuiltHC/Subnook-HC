@@ -34,7 +34,7 @@ fun <T> CappedList(
     /** 一开始滚到第几行（例如分期明细直接显示当前期） */
     startAt: Int = 0,
     /** 「共 N 条」里的量词 */
-    unit: String = "条",
+    unit: String = "",
     row: @Composable (T) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme

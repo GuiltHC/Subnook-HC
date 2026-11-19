@@ -1,40 +1,47 @@
 package com.subnook.app.data
 
-data class CurrencyInfo(val code: String, val name: String, val symbol: String)
+import com.subnook.app.R
+
+import androidx.annotation.StringRes
+import com.subnook.app.str
+
+data class CurrencyInfo(val code: String, @StringRes val nameRes: Int, val symbol: String) {
+    val name: String get() = str(nameRes)
+}
 
 object Currencies {
     val list = listOf(
-        CurrencyInfo("CNY", "人民币", "¥"),
-        CurrencyInfo("USD", "美元", "$"),
-        CurrencyInfo("EUR", "欧元", "€"),
-        CurrencyInfo("HKD", "港币", "HK$"),
-        CurrencyInfo("JPY", "日元", "JP¥"),
-        CurrencyInfo("GBP", "英镑", "£"),
-        CurrencyInfo("TWD", "新台币", "NT$"),
-        CurrencyInfo("KRW", "韩元", "₩"),
-        CurrencyInfo("SGD", "新加坡元", "S$"),
-        CurrencyInfo("MOP", "澳门元", "MOP$"),
-        CurrencyInfo("AUD", "澳元", "A$"),
-        CurrencyInfo("CAD", "加元", "C$"),
-        CurrencyInfo("CHF", "瑞士法郎", "CHF"),
-        CurrencyInfo("NZD", "新西兰元", "NZ$"),
-        CurrencyInfo("INR", "印度卢比", "₹"),
-        CurrencyInfo("RUB", "俄罗斯卢布", "₽"),
-        CurrencyInfo("TRY", "土耳其里拉", "₺"),
-        CurrencyInfo("THB", "泰铢", "฿"),
-        CurrencyInfo("MYR", "马来西亚林吉特", "RM"),
-        CurrencyInfo("PHP", "菲律宾比索", "₱"),
-        CurrencyInfo("VND", "越南盾", "₫"),
-        CurrencyInfo("IDR", "印尼盾", "Rp"),
-        CurrencyInfo("ARS", "阿根廷比索", "AR$"),
-        CurrencyInfo("BRL", "巴西雷亚尔", "R$"),
-        CurrencyInfo("MXN", "墨西哥比索", "MX$"),
-        CurrencyInfo("NGN", "尼日利亚奈拉", "₦"),
-        CurrencyInfo("EGP", "埃及镑", "E£"),
-        CurrencyInfo("PKR", "巴基斯坦卢比", "₨"),
-        CurrencyInfo("UAH", "乌克兰格里夫纳", "₴"),
-        CurrencyInfo("KZT", "哈萨克斯坦坚戈", "₸"),
-        CurrencyInfo("HUF", "匈牙利福林", "Ft"),
+        CurrencyInfo("CNY", R.string.currency_cny, "¥"),
+        CurrencyInfo("USD", R.string.currency_usd, "$"),
+        CurrencyInfo("EUR", R.string.currency_eur, "€"),
+        CurrencyInfo("HKD", R.string.currency_hkd, "HK$"),
+        CurrencyInfo("JPY", R.string.currency_jpy, "JP¥"),
+        CurrencyInfo("GBP", R.string.currency_gbp, "£"),
+        CurrencyInfo("TWD", R.string.currency_twd, "NT$"),
+        CurrencyInfo("KRW", R.string.currency_krw, "₩"),
+        CurrencyInfo("SGD", R.string.currency_sgd, "S$"),
+        CurrencyInfo("MOP", R.string.currency_mop, "MOP$"),
+        CurrencyInfo("AUD", R.string.currency_aud, "A$"),
+        CurrencyInfo("CAD", R.string.currency_cad, "C$"),
+        CurrencyInfo("CHF", R.string.currency_chf, "CHF"),
+        CurrencyInfo("NZD", R.string.currency_nzd, "NZ$"),
+        CurrencyInfo("INR", R.string.currency_inr, "₹"),
+        CurrencyInfo("RUB", R.string.currency_rub, "₽"),
+        CurrencyInfo("TRY", R.string.currency_try, "₺"),
+        CurrencyInfo("THB", R.string.currency_thb, "฿"),
+        CurrencyInfo("MYR", R.string.currency_myr, "RM"),
+        CurrencyInfo("PHP", R.string.currency_php, "₱"),
+        CurrencyInfo("VND", R.string.currency_vnd, "₫"),
+        CurrencyInfo("IDR", R.string.currency_idr, "Rp"),
+        CurrencyInfo("ARS", R.string.currency_ars, "AR$"),
+        CurrencyInfo("BRL", R.string.currency_brl, "R$"),
+        CurrencyInfo("MXN", R.string.currency_mxn, "MX$"),
+        CurrencyInfo("NGN", R.string.currency_ngn, "₦"),
+        CurrencyInfo("EGP", R.string.currency_egp, "E£"),
+        CurrencyInfo("PKR", R.string.currency_pkr, "₨"),
+        CurrencyInfo("UAH", R.string.currency_uah, "₴"),
+        CurrencyInfo("KZT", R.string.currency_kzt, "₸"),
+        CurrencyInfo("HUF", R.string.currency_huf, "Ft"),
     )
     private val byCode = list.associateBy { it.code }
 

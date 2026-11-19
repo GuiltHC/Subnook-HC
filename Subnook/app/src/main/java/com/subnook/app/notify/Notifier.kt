@@ -1,5 +1,8 @@
 package com.subnook.app.notify
 
+import com.subnook.app.str
+import com.subnook.app.plural
+import com.subnook.app.dateFmt
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -28,8 +31,8 @@ class Notifier(private val context: Context) {
     fun createChannels() {
         val nm = context.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
-            NotificationChannel(CH_BILL, "账单提醒", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "订阅扣款前提醒、手动付款逾期提醒"
+            NotificationChannel(CH_BILL, str(R.string.notif_channel_bills), NotificationManager.IMPORTANCE_HIGH).apply {
+                description = str(R.string.notif_channel_bills_desc)
             }
         )
     }
@@ -42,41 +45,41 @@ class Notifier(private val context: Context) {
         val due = LocalDate.ofEpochDay(sub.nextBillingDay)
         val days = ChronoUnit.DAYS.between(today, due)
         val whenText = when (days) {
-            0L -> "今天"
-            1L -> "明天"
-            else -> "${days}天后（${due.format(DateTimeFormatter.ofPattern("M月d日"))}）"
+            0L -> str(R.string.due_today)
+            1L -> str(R.string.due_tomorrow)
+            else -> plural(R.plurals.notif_in_days_date, days.toInt(), days, due.format(dateFmt(R.string.fmt_md)))
         }
         val amount = Billing.amountOn(sub, due)
         // 余额付款且余额不够：提醒先充值
         val lowBalance = com.subnook.app.domain.Balance.usesBalance(sub) && !com.subnook.app.domain.Balance.canPay(sub, amount)
         val action = when {
-            lowBalance -> "要扣款，余额不足"
-            sub.autoRenew -> "将自动扣款（${sub.payMethodLabel}）"
-            else -> "需要手动付款（${sub.payMethodLabel}）"
+            lowBalance -> str(R.string.notif_low_balance)
+            sub.autoRenew -> str(R.string.notif_auto_debit, sub.payMethodLabel)
+            else -> str(R.string.notif_manual_pay, sub.payMethodLabel)
         }
         val inst = if (sub.isInstallment) com.subnook.app.domain.Installments.progressText(sub) + " · " else ""
         val text = if (lowBalance) {
-            "${inst}需 ${Currencies.formatList(amount, sub.currency)}，余额只有 ${Currencies.formatList(sub.balance, sub.currency)}，请先充值"
+            str(R.string.notif_low_balance_text, inst, Currencies.formatList(amount, sub.currency), Currencies.formatList(sub.balance, sub.currency))
         } else {
-            "${inst}金额 ${Currencies.formatList(amount, sub.currency)}"
+            str(R.string.notif_amount_text, inst, Currencies.formatList(amount, sub.currency))
         }
-        post(sub, "${sub.name} $whenText$action", text, withConfirm = days <= Billing.PAYABLE_DAYS)
+        post(sub, str(R.string.notif_upcoming_title, sub.name, whenText, action), text, withConfirm = days <= Billing.PAYABLE_DAYS)
     }
 
     fun overdue(sub: Subscription, today: LocalDate) {
         val due = LocalDate.ofEpochDay(sub.nextBillingDay)
         val days = ChronoUnit.DAYS.between(due, today)
         val amount = Billing.amountOn(sub, due)
-        val dueText = due.format(DateTimeFormatter.ofPattern("M月d日"))
+        val dueText = due.format(dateFmt(R.string.fmt_md))
         if (sub.autoRenew && com.subnook.app.domain.Balance.usesBalance(sub)) {
             post(
-                sub, "${sub.name} 余额不足，已逾期 $days 天",
-                "账单日 $dueText 需 ${Currencies.formatList(amount, sub.currency)}，余额 ${Currencies.formatList(sub.balance, sub.currency)}；充值后点「已付款」",
+                sub, plural(R.plurals.notif_overdue_low_balance, days.toInt(), sub.name, days),
+                str(R.string.notif_overdue_low_balance_text, dueText, Currencies.formatList(amount, sub.currency), Currencies.formatList(sub.balance, sub.currency)),
                 withConfirm = true,
             )
             return
         }
-        post(sub, "${sub.name} 已逾期 $days 天未确认付款", "账单日 $dueText · ${Currencies.formatList(amount, sub.currency)}，付完后点「已付款」", withConfirm = true)
+        post(sub, plural(R.plurals.notif_overdue, days.toInt(), sub.name, days), str(R.string.notif_overdue_text, dueText, Currencies.formatList(amount, sub.currency)), withConfirm = true)
     }
 
     private fun post(sub: Subscription, title: String, text: String, withConfirm: Boolean) {
@@ -104,7 +107,7 @@ class Notifier(private val context: Context) {
                 Intent(context, ActionReceiver::class.java).setAction(ActionReceiver.ACTION_CONFIRM).putExtra(ActionReceiver.EXTRA_ID, sub.id),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
-            b.addAction(0, "已付款", confirm)
+            b.addAction(0, str(R.string.common_paid), confirm)
         }
         try {
             NotificationManagerCompat.from(context).notify(notifId(sub.id), b.build())

@@ -1,5 +1,7 @@
 package com.subnook.app.data
 
+import com.subnook.app.R
+import com.subnook.app.str
 import android.content.Context
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -23,15 +25,15 @@ class CloudBackup(private val context: Context) {
 
     private suspend fun client(): WebDavClient {
         val c = repo.get()
-        if (c.url.isBlank() || c.user.isBlank()) throw WebDavException("还没有设置 WebDAV 账号")
-        val pw = repo.password() ?: throw WebDavException("密码已失效，请重新填写 WebDAV 密码")
+        if (c.url.isBlank() || c.user.isBlank()) throw WebDavException(str(R.string.cloud_no_account))
+        val pw = repo.password() ?: throw WebDavException(str(R.string.cloud_password_invalid))
         return WebDavClient(c.url, c.user, pw)
     }
 
     /** 测试并保存账号：能登录才保存。[password] 为 null 表示沿用已保存的密码 */
     suspend fun saveAccount(url: String, user: String, password: String?) {
-        val pw = password ?: repo.password() ?: throw WebDavException("请填写密码")
-        val normalized = WebDavClient.normalize(url)?.toString() ?: throw WebDavException("服务器地址不正确")
+        val pw = password ?: repo.password() ?: throw WebDavException(str(R.string.cloud_enter_password))
+        val normalized = WebDavClient.normalize(url)?.toString() ?: throw WebDavException(str(R.string.webdav_bad_url))
         WebDavClient(normalized, user.trim(), pw).connect()
         repo.saveAccount(normalized, user.trim(), password)
     }

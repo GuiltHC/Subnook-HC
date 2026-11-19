@@ -1,5 +1,9 @@
 package com.subnook.app.ui.edit
 
+import com.subnook.app.dateFmt
+import com.subnook.app.R
+import com.subnook.app.str
+import com.subnook.app.plural
 import com.subnook.app.ui.components.AppAlertDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -48,19 +52,19 @@ internal fun PrepayDialog(sub: Subscription, onDismiss: () -> Unit, onConfirm: (
 
     val amount = amountText.replace(",", "").toDoubleOrNull()
     val error = when {
-        amount == null || amount <= 0 -> "请填写还款金额"
-        mode != PrepayMode.PAY_OFF && amount >= remaining -> "部分还款要少于剩余本金 ${money(remaining)}；全部还掉请选「一次还清」"
+        amount == null || amount <= 0 -> str(R.string.common_enter_prepay_amount)
+        mode != PrepayMode.PAY_OFF && amount >= remaining -> str(R.string.prepay_err_partial, money(remaining))
         else -> null
     }
     val result = if (error == null) runCatching { Installments.prepay(sub, amount!!, mode, today) }.getOrNull() else null
 
     AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("提前还款") },
+        title = { Text(str(R.string.common_prepay)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    "剩余本金 ${money(remaining)} · 按原计划还剩 ${sum.remainingTerms} 期，共 ${money(sum.remainingAmount)}",
+                    plural(R.plurals.prepay_summary, sum.remainingTerms, money(remaining), sum.remainingTerms, money(sum.remainingAmount)),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -74,26 +78,25 @@ internal fun PrepayDialog(sub: Subscription, onDismiss: () -> Unit, onConfirm: (
                 }
                 OutlinedTextField(
                     amountText, { amountText = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = { Text(if (mode == PrepayMode.PAY_OFF) "实际还款金额" else "提前还的本金") },
+                    label = { Text(if (mode == PrepayMode.PAY_OFF) str(R.string.prepay_actual_amount) else str(R.string.prepay_principal)) },
                     singleLine = true, isError = amountText.isNotEmpty() && error != null,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (error != null && amountText.isNotEmpty()) Text(error, style = MaterialTheme.typography.bodySmall, color = cs.error)
                 result?.let { r ->
-                    val saved = if (r.saved >= 0) "比按原计划少付 ${money(r.saved)}" else "比按原计划多付 ${money(-r.saved)}"
+                    val saved = if (r.saved >= 0) str(R.string.prepay_saves, money(r.saved)) else str(R.string.prepay_costs_more, money(-r.saved))
                     Text(
-                        if (r.paidOff) "还清后不再扣款，$saved"
-                        else "之后每期 ${money(r.newPayment)}，还剩 ${r.newTerms} 期，最后一期 " +
-                            (r.newEnd?.format(DateTimeFormatter.ofPattern("yyyy年M月d日")) ?: "") + "；$saved",
+                        if (r.paidOff) str(R.string.prepay_result_paid_off, saved)
+                        else plural(R.plurals.prepay_result_partial, r.newTerms, money(r.newPayment), r.newTerms, r.newEnd?.format(dateFmt(R.string.fmt_ymd)) ?: "", saved),
                         style = MaterialTheme.typography.bodyMedium, color = if (r.saved >= 0) extra.success else extra.warning,
                     )
                 }
             }
         },
         confirmButton = {
-            TextButton(enabled = result != null, onClick = { onConfirm(amount!!, mode) }) { Text("确认提前还款") }
+            TextButton(enabled = result != null, onClick = { onConfirm(amount!!, mode) }) { Text(str(R.string.prepay_confirm)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(str(R.string.common_cancel)) } },
     )
 }

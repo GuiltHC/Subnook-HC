@@ -6,6 +6,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class UpdateCheckerTest {
+    init { TestL10n.zh() }
+
     @Test fun normalize() {
         assertEquals("1.2.0", UpdateChecker.normalize("v1.2.0"))
         assertEquals("1.1.0", UpdateChecker.normalize("1.1.0-debug"))

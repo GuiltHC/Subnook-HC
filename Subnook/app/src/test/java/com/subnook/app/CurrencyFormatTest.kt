@@ -5,6 +5,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class CurrencyFormatTest {
+    init { TestL10n.zh() }
+
     @Test fun regionSymbols() {
         assertEquals("CN¥25", Currencies.formatList(25.0, "CNY"))
         assertEquals("US$20", Currencies.formatList(20.0, "USD"))

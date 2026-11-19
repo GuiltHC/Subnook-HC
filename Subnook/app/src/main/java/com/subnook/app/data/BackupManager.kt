@@ -1,5 +1,7 @@
 package com.subnook.app.data
 
+import com.subnook.app.R
+import com.subnook.app.str
 import android.content.Context
 import android.net.Uri
 import android.util.Base64
@@ -49,8 +51,8 @@ object BackupCodec {
 
     fun decode(text: String): BackupFile {
         val data = runCatching { json.decodeFromString(BackupFile.serializer(), text) }
-            .getOrElse { throw IllegalArgumentException("文件内容无法识别（${it.message?.take(80)}）", it) }
-        require(data.app in APP_IDS) { "不是本应用的备份文件" }
+            .getOrElse { throw IllegalArgumentException(str(R.string.backup_unrecognized, it.message?.take(80)), it) }
+        require(data.app in APP_IDS) { str(R.string.backup_not_ours) }
         // 旧版本没有分期：kind 缺省为 SUBSCRIPTION；分期字段不完整的记录当普通订阅处理，避免算出 0 元
         val subs = data.subscriptions.map { s ->
             if (s.isInstallment && (s.instTerms <= 0 || s.instPrincipal <= 0.0)) s.copy(kind = SubKind.SUBSCRIPTION) else s

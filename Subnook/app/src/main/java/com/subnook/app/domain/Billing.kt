@@ -1,5 +1,8 @@
 package com.subnook.app.domain
 
+import com.subnook.app.R
+import com.subnook.app.str
+import com.subnook.app.plural
 import com.subnook.app.data.CycleUnit
 import com.subnook.app.data.RateTable
 import com.subnook.app.data.Subscription
@@ -108,14 +111,14 @@ object Billing {
         ChronoUnit.DAYS.between(today, LocalDate.ofEpochDay(sub.nextBillingDay))
 
     fun cycleText(sub: Subscription): String =
-        if (sub.cycleCount == 1) "每${sub.cycleUnit.label}" else "每${sub.cycleCount}${sub.cycleUnit.label}"
+        if (sub.cycleCount == 1) str(sub.cycleUnit.everyRes) else plural(sub.cycleUnit.everyNRes, sub.cycleCount, sub.cycleCount)
 
     fun dueText(days: Long): String = when {
-        days < -1 -> "已逾期 ${-days} 天"
-        days == -1L -> "昨天到期"
-        days == 0L -> "今天"
-        days == 1L -> "明天"
-        days == 2L -> "后天"
-        else -> "$days 天后"
+        days < -1 -> plural(R.plurals.due_overdue_days, (-days).toInt(), -days)
+        days == -1L -> str(R.string.due_yesterday)
+        days == 0L -> str(R.string.due_today)
+        days == 1L -> str(R.string.due_tomorrow)
+        days == 2L -> str(R.string.due_day_after)
+        else -> plural(R.plurals.due_in_days, days.toInt(), days)
     }
 }

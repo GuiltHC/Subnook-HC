@@ -24,6 +24,8 @@ import java.net.URLDecoder
  * [style] 模拟不同服务器的 PROPFIND 响应写法：坚果云式（d: 前缀、相对路径 href）和 Nextcloud 式（D: 前缀、完整 URL href）。
  */
 class WebDavClientTest {
+    init { TestL10n.zh() }
+
     private enum class Style { JIANGUOYUN, NEXTCLOUD }
 
     private lateinit var server: MockWebServer
