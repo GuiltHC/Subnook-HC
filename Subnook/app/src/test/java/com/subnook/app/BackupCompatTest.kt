@@ -8,6 +8,7 @@ import com.subnook.app.data.SortOrder
 import com.subnook.app.data.SubKind
 import com.subnook.app.data.Subscription
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -44,6 +45,7 @@ class BackupCompatTest {
             assertEquals(SubKind.SUBSCRIPTION, s.kind)
             assertEquals(0, s.instTerms)
             assertNull(s.instFirstAmount)
+            assertFalse(s.instShortFirst)
         }
         val netflix = b.subscriptions.first { it.id == 3L }
         assertEquals(15.49, netflix.amount, 0.0)
@@ -73,7 +75,7 @@ class BackupCompatTest {
             id = 9, name = "手机分期", amount = 536.0, currency = "CNY", nextBillingDay = 20800, anchorDay = 15,
             kind = SubKind.INSTALLMENT, instPrincipal = 6000.0, instTerms = 12, instRate = 0.6,
             instMethod = InstallmentMethod.FEE_UPFRONT, instFirstAmount = 940.0, instStartDay = 20740,
-            instTermOffset = 3, instPaidBefore = 1900.5, instPrincipalBefore = 1500.0, instPaidOffDay = 20790,
+            instTermOffset = 3, instPaidBefore = 1900.5, instPrincipalBefore = 1500.0, instPaidOffDay = 20790, instShortFirst = true,
         )
         val pay = com.subnook.app.data.PaymentRecord(id = 5, subscriptionId = 9, billingDay = 20790, amount = 1000.0, currency = "CNY", auto = false, term = 4, prepay = true, undo = "{\"name\":\"x\"}")
         val back = BackupCodec.decode(BackupCodec.encode(BackupFile(subscriptions = listOf(inst), payments = listOf(pay))))

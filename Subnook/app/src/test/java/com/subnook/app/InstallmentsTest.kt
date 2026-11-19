@@ -6,6 +6,7 @@ import com.subnook.app.data.SubKind
 import com.subnook.app.data.Subscription
 import com.subnook.app.domain.Billing
 import com.subnook.app.domain.Installments
+import com.subnook.app.ui.edit.Form
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -24,8 +25,106 @@ class InstallmentsTest {
         assertEquals(listOf(333.34, 333.33, 333.33), pays(1000.0, 3, 0.0, InstallmentMethod.INTEREST_FREE))
     }
 
+    @Test fun actualFirstPaymentRedistributesRemainingPrincipal() {
+        val sub = phone(LocalDate.of(2026, 12, 19), current = 2, terms = 3).copy(
+            instPrincipal = 7099.0, instFirstAmount = 182.50, instRate = 0.0,
+            instMethod = InstallmentMethod.INTEREST_FREE, amount = 2366.33,
+        )
+        val schedule = Installments.schedule(sub)
+        val expected = listOf(182.50, 3458.25, 3458.25)
+        assertEquals(expected, schedule.map { it.payment })
+        assertEquals(expected, schedule.map { it.principal })
+        assertTrue(schedule.all { it.interest == 0.0 })
+
+        val summary = Installments.summary(sub)
+        assertEquals(7099.0, summary.totalPayment, 0.0)
+        assertEquals(0.0, summary.totalInterest, 0.0)
+        assertEquals(6916.50, summary.remainingAmount, 0.0)
+        assertEquals(6916.50, Installments.remainingPrincipal(sub), 0.0)
+        assertEquals(3458.25, Installments.normalize(sub).amount, 0.0)
+    }
+
+    // 11 月 19 日的短账期已付，平台另列的 7,099 元从 12 月起完整分三期。
+    private fun shortFirstBill(): Subscription {
+        val form = Form().apply {
+            startInstallment("CNY")
+            name = "11 月 11 日消费"
+            instPrincipal = "7099"
+            instTerms = "3"
+            instFirst = "182.50"
+            chooseShortFirst(true)
+            instCurrent = "1"
+            next = LocalDate.of(2026, 12, 19)
+        }
+        return requireNotNull(form.build())
+    }
+
+    @Test fun shortFirstIsAdditionalToThreeFullInstallments() {
+        val sub = shortFirstBill()
+        val schedule = Installments.schedule(sub)
+        val start = LocalDate.of(2026, 11, 19)
+        assertEquals((0..3).toList(), schedule.map { it.index })
+        assertEquals((0L..3L).map(start::plusMonths), schedule.map { it.date })
+        assertEquals(listOf(182.50, 2366.34, 2366.33, 2366.33), schedule.map { it.payment })
+        val sum = Installments.summary(sub)
+        assertEquals(1, sum.current)
+        assertEquals(3, sum.total)
+        assertEquals(3, sum.remainingTerms)
+        assertEquals(7099.0, sum.remainingAmount, 0.0)
+        assertEquals(7281.50, sum.totalPayment, 0.0)
+        assertEquals(0.0, sum.totalInterest, 0.0)
+        assertEquals(2366.34, sub.amount, 0.0)
+        assertEquals(7099.0, Billing.upcomingCost(sub, start, start.plusMonths(4)), 0.000001)
+        val reopened = Form().apply { load(sub) }
+        assertEquals("7099", reopened.instPrincipal)
+        assertEquals("3", reopened.instTerms)
+        assertEquals("1", reopened.instCurrent)
+        assertEquals(sub, reopened.build())
+    }
+
+    @Test fun existingFirstOverrideCanBeExplicitlyMovedOutsideTermCount() {
+        val sub = phone(LocalDate.of(2026, 12, 19), current = 2, terms = 3).copy(
+            instPrincipal = 7099.0, instFirstAmount = 182.50, instRate = 0.0,
+        )
+        val form = Form().apply { load(sub); chooseShortFirst(true) }
+        assertEquals("1", form.instCurrent)
+        assertEquals(Installments.schedule(shortFirstBill()), Installments.schedule(requireNotNull(form.build())))
+    }
+
+    @Test fun feesOnRegularInstallmentsExcludeTheShortPeriod() {
+        val sub = shortFirstBill().copy(instMethod = InstallmentMethod.FEE_UPFRONT, instRate = 1.0)
+        val schedule = Installments.schedule(sub)
+        assertEquals(listOf(182.50, 2579.31, 2366.33, 2366.33), schedule.map { it.payment })
+        assertEquals(212.97, Installments.summary(sub).totalInterest, 0.0)
+    }
+
+    @Test fun shortFirstSurvivesPrepaymentAndUndo() {
+        val sub = shortFirstBill()
+        val shortDate = LocalDate.of(2026, 11, 19)
+        val pending = sub.copy(nextBillingDay = shortDate.toEpochDay())
+        assertEquals("短首期", Installments.progressText(pending))
+        val mode = Installments.PrepayMode.LOWER_PAYMENT
+        val partial = Installments.prepay(pending, 82.50, mode, shortDate).sub
+        assertEquals(listOf(100.0, 2366.34, 2366.33, 2366.33), Installments.parts(partial).map { it.payment })
+        val settled = Installments.prepay(partial, 100.0, mode, shortDate).sub
+        assertEquals(1, Installments.summary(settled).current)
+        assertEquals(7099.0, Installments.remainingPrincipal(settled), 0.0)
+        val reduced = Installments.prepay(sub, 1099.0, mode, shortDate.plusMonths(1)).sub
+        assertEquals(listOf(1, 2, 3), Installments.schedule(reduced).map { it.index })
+        assertEquals(List(3) { 2000.0 }, Installments.parts(reduced).map { it.payment })
+        assertEquals(7281.50, Installments.summary(reduced).totalPayment, 0.0)
+        assertEquals(sub, Installments.restoreFrom(reduced, Installments.snapshot(sub)))
+    }
+
     @Test fun noDecimalCurrencyRoundsToWholeUnits() {
         assertEquals(listOf(3334.0, 3333.0, 3333.0), pays(10000.0, 3, 0.0, InstallmentMethod.INTEREST_FREE, decimals = 0))
+    }
+
+    @Test fun largerFirstPaymentAtZeroRateKeepsRemainderInNextTerm() {
+        for (method in InstallmentMethod.entries) {
+            val payments = pays(1000.0, 3, 0.0, method, decimals = 0, first = 401.0)
+            assertEquals(method.name, listOf(401.0, 300.0, 299.0), payments)
+        }
     }
 
     @Test fun feePerTerm() {

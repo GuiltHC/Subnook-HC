@@ -933,7 +933,7 @@ private fun InstallmentCard(s: Subscription, st: UiState, today: LocalDate, onCl
             Spacer(Modifier.height(5.dp))
             Row {
                 Text(
-                    if (Installments.isPaidOff(s)) "提前还清" else if (sum.finished) "已还 ${sum.paidTerms} 期" else "第 ${sum.current}/${sum.total} 期 · 已还 ${sum.paidTerms} 期",
+                    if (Installments.isPaidOff(s)) "提前还清" else if (sum.finished) "已还 ${sum.paidTerms} 期" else "${sum.currentLabel} · 已还 ${sum.paidTerms} 期",
                     style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
